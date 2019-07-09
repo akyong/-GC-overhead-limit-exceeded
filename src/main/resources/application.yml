@@ -26,6 +26,7 @@ micronaut:
 #        password: ${JDBC_PASSWORD:%Ap1TDr3AD.T%}
 #        driverClassName: ${JDBC_DRIVER:com.mysql.jdbc.Driver}
 #        maximum-pool-size: 20
+#test
 
 datasources:
     default:
