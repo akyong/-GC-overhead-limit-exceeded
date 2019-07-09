@@ -3,15 +3,13 @@ package bank.transaction.service.controller;
 import bank.transaction.service.repository.OrderServiceRepository;
 import bank.transaction.service.service.OrderService;
 import bank.transaction.service.validation.ReceivePaymentValidation;
+import bank.transaction.service.validation.ReceivedPaymentVIrfan;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Post;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.validation.Valid;
-import java.util.List;
 
 @Controller("/api/receive-payment")
 public class ReceivePaymentController {
@@ -21,8 +19,25 @@ public class ReceivePaymentController {
         this.orderServiceRepository = orderServiceRepository;
     }
 
+
+    /**
+     * @param receivePaymentValidation
+     * return String
+     * @apiNote this api is using by elka
+     * */
     @Post("/")
     public String index(@Body ReceivePaymentValidation receivePaymentValidation){
         return orderServiceRepository.COMPLETE_TRX(receivePaymentValidation.getInvoiceId());
+    }
+
+    /**
+     * @param receivedPaymentVIrfan
+     * return String
+     * @apiNote this api is using by irfan for BNI
+     * */
+    @Post("/")
+    public String index2(@Body ReceivedPaymentVIrfan receivedPaymentVIrfan){
+        return "";
+//        return orderServiceRepository.COMPLETE_TRX(receivedPaymentVIrfan.getInvoiceNo());
     }
 }

@@ -39,8 +39,6 @@ public class Common {
 //    public final String BCA_CLIENT_ID = "e571d7fd-9b5b-46e8-a835-2f5793c44611";
 //    public final String BCA_CLIENT_SECRET = "cb711807-bd70-4069-a6ce-bb9739716cae";
 //    public final String BCA_CORPORATE_ID = "BCAAPI2016";
-//    public final String BCA_ACCOUNT_NUMBER = "0201245680";
-
 
     /**
      * Notification Server URL
@@ -52,7 +50,7 @@ public class Common {
      * STATUS
      * @params dev for development and prod is production
      * */
-    public final String LOG_NOTIF = "prod"; //dev or prod
+    public final String LOG_NOTIF = "dev"; //dev or prod
     public final String CANCELLED = "Canceled";
     public final String test ="saya suka %s";
 

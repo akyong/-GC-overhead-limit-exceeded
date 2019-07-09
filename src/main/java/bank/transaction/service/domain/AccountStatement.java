@@ -119,22 +119,22 @@ public class AccountStatement {
         this.accountStatementDetailList = accountStatementDetailList;
     }
 
-//    @Override
-//    public String toString() {
-//        try {
-//            return new com.fasterxml.jackson.databind.ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(this);
-//        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-//            e.printStackTrace();
-//        }
-//        return null;
-//    }
     @Override
     public String toString() {
-        return "AccountStatement{" +
-                "currencyCode='" + currencyCode + '\'' +
-                ", startBalance=" + startBalance +
-                ", accountStatementDetailList=" + accountStatementDetailList +
-                '}';
+        try {
+            return new com.fasterxml.jackson.databind.ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(this);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
+//    @Override
+//    public String toString() {
+//        return "'AccountStatement{" +
+//                "currencyCode'" + currencyCode + '\'' +
+//                ", startBalance=" + startBalance +
+//                ", accountStatementDetailList=" + accountStatementDetailList +
+//                '}';
+//    }
 
 }

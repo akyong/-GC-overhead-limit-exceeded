@@ -2,22 +2,17 @@ package bank.transaction.service.scheduler;
 
 import bank.transaction.service.Common;
 import bank.transaction.service.impl.*;
+import bank.transaction.service.repository.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.util.Date;
-import java.util.Calendar;
-import java.util.Collections;
-import java.util.GregorianCalendar;
+
+import java.math.BigDecimal;
+import java.util.*;
 import javax.inject.Singleton;
 import io.micronaut.scheduling.annotation.Scheduled;
 import bank.transaction.service.domain.AccessGrant;
 import bank.transaction.service.domain.AccountStatement;
 import bank.transaction.service.domain.AccountStatementDetail;
-import bank.transaction.service.repository.ExpeditionRepository;
-import bank.transaction.service.repository.Oauth2Operations;
-import bank.transaction.service.repository.Oauth2OperationsBNI;
-import bank.transaction.service.repository.OrderServiceRepository;
-import bank.transaction.service.service.AccountStatementService;
 import bank.transaction.service.service.BcaService;
 import org.springframework.web.client.RestTemplate;
 
@@ -33,17 +28,17 @@ public class TransactionCheckerJob {
     protected AccessGrant accessGrant;
     private BusinessBankingTemplate businessBankingTemplate;
     private RestTemplate restTemplate;
-    private final AccountStatementService accountStatementService;
+    private final AccountStatementRepository accountStatementRepository;
     private final OrderServiceRepository orderServiceRepository;
     private final Oauth2OperationsBNI oauth2OperationsBNI;
     private final ExpeditionRepository expeditionRepository;
     private final BNIBankingTemplate bniBankingTemplate;
 
-    public TransactionCheckerJob(Common common, BNIBankingTemplate bniBankingTemplate,ExpeditionRepository expeditionRepository, OrderServiceRepository orderServiceRepository, BcaService bcaService, Oauth2Template oauth2Template, Oauth2OperationsBNI oauth2OperationsBNI, RestTemplate restTemplate, AccountStatementService accountStatementService){
+    public TransactionCheckerJob(Common common, BNIBankingTemplate bniBankingTemplate,ExpeditionRepository expeditionRepository, OrderServiceRepository orderServiceRepository, BcaService bcaService, Oauth2Template oauth2Template, Oauth2OperationsBNI oauth2OperationsBNI, RestTemplate restTemplate, AccountStatementRepository accountStatementRepository){
         this.bcaService = bcaService;
         this.oauth2Template = oauth2Template;
         this.restTemplate = restTemplate;
-        this.accountStatementService = accountStatementService;
+        this.accountStatementRepository = accountStatementRepository;
         this.oauth2OperationsBNI = oauth2OperationsBNI;
         this.orderServiceRepository = orderServiceRepository;
         this.expeditionRepository = expeditionRepository;
@@ -59,45 +54,48 @@ public class TransactionCheckerJob {
      * Then update stock
      *
      * */
-    @Scheduled(fixedDelay = "270s", initialDelay = "5s")
+    @Scheduled(fixedDelay = "10s", initialDelay = "5s")
     void expiredPaymentChecking(){
         orderServiceRepository.autoUpdatePaymentStatusIfExpired();
     }
 
-    /**
-     * Case No. 2 -> Reseller sudah melakukan pembayaran -> Approve akan otomatsi berjalan dan transaksi akan otomatis diteruskan ke supplier
-     * TODO update order sumarries ->payment_status = 1, payment_verified_by = 0, payment_verified_at = now(), is_paid = 1
-     * TODO update order suppliers ->supplier_feedback_expired_AT = now()+1 DAY, order_status = 1
-     * TODO Send NotificationSupplier ONESIGNAL "Pesanan Berhasil dibayar" -> "Pembayaran pesananmu TDO/20190225/0000160 telah dikonfirmasi dan diteruskan ke penjual. Silahkan tunggu pesanan dikirim."
-     * */
-    @Scheduled(fixedDelay = "270s", initialDelay = "10s")
-    void executeEveryTen() throws Exception {
-        AccountStatement ac ;
-        Calendar now = Calendar.getInstance();
-        int year = now.get(Calendar.YEAR);
-        int month = now.get(Calendar.MONTH) + 1; // Note: zero based!
-        int day = now.get(Calendar.DAY_OF_MONTH);
+//    /**
+//     * Case No. 2 -> Reseller sudah melakukan pembayaran -> Approve akan otomatsi berjalan dan transaksi akan otomatis diteruskan ke supplier
+//     * TODO update order sumarries ->payment_status = 1, payment_verified_by = 0, payment_verified_at = now(), is_paid = 1
+//     * TODO update order suppliers ->supplier_feedback_expired_AT = now()+1 DAY, order_status = 1
+//     * TODO Send NotificationSupplier ONESIGNAL "Pesanan Berhasil dibayar" -> "Pembayaran pesananmu TDO/20190225/0000160 telah dikonfirmasi dan diteruskan ke penjual. Silahkan tunggu pesanan dikirim."
+//     * */
+//    @Scheduled(fixedDelay = "270s", initialDelay = "35s")
+//    void executeEveryTen() throws Exception {
+//        List<BigDecimal> listAmount = new ArrayList<>();
+//        Calendar now = Calendar.getInstance();
+//        int year = now.get(Calendar.YEAR);
+//        int month = now.get(Calendar.MONTH) + 1; // Note: zero based!
+//        int day = now.get(Calendar.DAY_OF_MONTH);
+//
+////        Date fromDate = toDate(2016, 9,1);
+////        Date endDate = toDate(2016, 9, 1);
+//
+//        Date fromDate = toDate(year, month,day);
+//        Date endDate = toDate(year, month, day);
+//
+////        AccessGrant testGetTokenBNI = oauth2OperationsBNI.getToken("d78e500c-76c1-49e8-a4d8-41c5154b150e","ad0882f2-b9b4-46c2-beca-ff2946e4e1aa");
+//        /** THIS IS IMPORTANT */
+//        BusinessBankingTemplate businessBankingTemplate = new BusinessBankingTemplate(getRestTemplate());
+//        try {
+//            AccountStatement ac = accountStatementRepository.saveConditional(businessBankingTemplate.getStatement(common.BCA_CORPORATE_ID,common.BCA_ACCOUNT_NUMBER, fromDate, endDate));
+//
+//            for (AccountStatementDetail acd: ac.getAccountStatementDetailList()) {
+//                listAmount.add(acd.getAmount());
+//            }
+//            orderServiceRepository.CheckToTokdis(listAmount);
+//        }
+//        catch (Exception ex){
+//            LOG.error("----------- NO TRANSACTION!!!!");
+//        }
+//    }
 
-//        Date fromDate = toDate(2016, 9,1);
-//        Date endDate = toDate(2016, 9, 1);
 
-        Date fromDate = toDate(year, month,day);
-        Date endDate = toDate(year, month, day);
-
-//        AccessGrant testGetTokenBNI = oauth2OperationsBNI.getToken("d78e500c-76c1-49e8-a4d8-41c5154b150e","ad0882f2-b9b4-46c2-beca-ff2946e4e1aa");
-        /** THIS IS IMPORTANT */
-        BusinessBankingTemplate businessBankingTemplate = new BusinessBankingTemplate(getRestTemplate());
-        try {
-            ac = accountStatementService.saveConditional(businessBankingTemplate.getStatement(common.BCA_CORPORATE_ID,common.BCA_ACCOUNT_NUMBER, fromDate, endDate));
-            LOG.error("-----------statement : {}\n\n",ac.toString());
-            for (AccountStatementDetail acd: ac.getAccountStatementDetailList()) {
-                orderServiceRepository.CheckToTokdis(acd.getAmount());
-            }
-        }
-        catch (Exception ex){
-            LOG.error("----------- NO TRANSACTION!!!!");
-        }
-    }
 
     /**
      * Case No. 3 Reseller -> Dikirim -> Pesanan kaan otomatis pindah ke transaksi sampai
@@ -179,14 +177,6 @@ public class TransactionCheckerJob {
     void executeNotificationMustSendItem(){
         orderServiceRepository.sentNotifMustSentItem();
     }
-
-//    @Scheduled(fixedDelay = "5s")
-//    void testGettokenBNI(){
-//        AccessGrant accessGrant = oauth2OperationsBNI.getToken(common.BNI_ACCESS_TOKEN_CLIENT_ID,common.BNI_ACCESS_TOKEN_CLIENT_SECRET);
-//        LOG.info("\n\n\nTOKEN BNI -> {}",accessGrant.getAccessToken());
-//        LOG.info("\n\n\nTOKEN BNI -> {}",bniBankingTemplate.getPaymentStatus("20181001112233001",accessGrant));
-//
-//    }
 
     protected RestTemplate getRestTemplate() {
         RestTemplate restTemplate = new RestTemplate();

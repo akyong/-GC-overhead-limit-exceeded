@@ -65,8 +65,9 @@ public class ExpeditionService implements ExpeditionRepository {
         String url = "";
         for (HashMap<String,String> list: hashMapList) {
 
-            url = HOST_NAME+PATH_TRACK+list.get("kurir")+"/"+list.get("awbNumber");
-            LOG.info("URL => {} ", url);
+            String trimResi = list.get("awbNumber").replace(" ","").replace(" ","");
+            url = HOST_NAME+PATH_TRACK+list.get("kurir")+"/"+trimResi;
+            LOG.info("URL => {}, END with comma", url);
             URL obj = new URL(url);
             HttpURLConnection connection = (HttpURLConnection) obj.openConnection();
 
@@ -124,16 +125,16 @@ public class ExpeditionService implements ExpeditionRepository {
 
     public List<HashMap<String,String>> getListOfAwbNumber(){
         List<HashMap<String,String>> listawbnumber = new ArrayList<>();
-        Connection con = null;
         Statement statement = null;
         ResultSet resultSet = null;
-        PreparedStatement preparedStatement = null;
-
-        try {
-            con = dataSource.getConnection();
-            preparedStatement = con.prepareStatement("SELECT a.shipping_data->'$.name' as kurir, a.awb_number, b.reseller_data->'$.id' as reseller_id, a.invoice_number FROM order_suppliers a "+
-                    "JOIN order_summaries b on (a.summaries_id = b.id) WHERE b.payment_status = 1 AND b.is_paid = 1 AND a.supplier_feedback_at is not null "+
-                    "AND a.is_delivered = 0 AND a.order_status in (4,5)");
+        try
+            (
+                Connection con = dataSource.getConnection();
+                PreparedStatement preparedStatement = con.prepareStatement("SELECT a.shipping_data->'$.name' as kurir, a.awb_number, b.reseller_data->'$.id' as reseller_id, a.invoice_number FROM order_suppliers a "+
+                        "JOIN order_summaries b on (a.summaries_id = b.id) WHERE b.payment_status = 1 AND b.is_paid = 1 AND a.supplier_feedback_at is not null "+
+                        "AND a.is_delivered = 0 AND a.order_status in (4,5)");
+            )
+        {
             resultSet = preparedStatement.executeQuery();
             while(resultSet.next()){
                 HashMap<String, String> map = new HashMap<>();
@@ -148,14 +149,6 @@ public class ExpeditionService implements ExpeditionRepository {
             }
         } catch (SQLException e) {
             e.printStackTrace();
-        } finally{
-            try {
-                if(resultSet != null) resultSet.close();
-                if(statement != null) statement.close();
-                if(con != null) con.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
         }
 
         return listawbnumber;
@@ -170,21 +163,25 @@ public class ExpeditionService implements ExpeditionRepository {
      * delivered_at = new date
      * */
     public void updateOrderSupplierIfTrackedNumber(String awbnumber, String kurir){
-        Connection con = null;
+
         Statement statement = null;
         ResultSet resultSet = null;
-        PreparedStatement preparedStatement = null;
-        LOG.info("track hits 0 ");
-        try {
-            LOG.info("track hits 1");
-            con = dataSource.getConnection();
-            preparedStatement = con.prepareStatement("update order_suppliers set " +
-                    "delivery_status = ? , " +
-                    "order_status = ? , " +
-                    "confirmed_expired_at = DATE_ADD(NOW(), INTERVAL 2 DAY) , " +
-                    "is_delivered = ? , " +
-                    "delivered_at =  NOW() " +
-                    "where awb_number = ? AND shipping_data->'$.name' = ? ");
+
+        try
+            (
+                Connection con = dataSource.getConnection();
+                PreparedStatement preparedStatement = con.prepareStatement("update order_suppliers set " +
+                        "delivery_status = ? , " +
+                        "order_status = ? , " +
+                        "confirmed_expired_at = DATE_ADD(NOW(), INTERVAL 2 DAY) , " +
+                        "is_delivered = ? , " +
+                        "delivered_at =  NOW() " +
+                        "where awb_number = ? AND shipping_data->'$.name' = ? ");
+            )
+        {
+
+
+
 
             preparedStatement.setInt(1,1);
             preparedStatement.setInt(2,5);//waiting confirmation
@@ -195,14 +192,6 @@ public class ExpeditionService implements ExpeditionRepository {
 
         } catch (SQLException e) {
             e.printStackTrace();
-        } finally{
-            try {
-                if(resultSet != null) resultSet.close();
-                if(statement != null) statement.close();
-                if(con != null) con.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
         }
     }
 
@@ -248,6 +237,7 @@ public class ExpeditionService implements ExpeditionRepository {
 
         String playerId = "";
         try {
+
             con = dataSourceTokdisdev.getConnection();
             preparedStatement = con.prepareStatement("select player_id from onesignal_player where reseller_id = ? ");
             preparedStatement.setInt(1, id);

@@ -18,7 +18,10 @@
  */
 package bank.transaction.service.domain;
 
+import com.fasterxml.jackson.annotation.JsonIdentityInfo;
+import com.fasterxml.jackson.annotation.JsonIdentityReference;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 
 import javax.persistence.*;
 import java.math.BigDecimal;
@@ -74,6 +77,8 @@ public class AccountStatementDetail {
     private String remark;
 
     @JoinColumn(name = "account_statement_id")
+    @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
+    @JsonIdentityReference(alwaysAsId = true)
     @ManyToOne
     private AccountStatement accountStatement;
 
@@ -125,25 +130,25 @@ public class AccountStatementDetail {
 
     public AccountStatement getAccountStatement() { return accountStatement; }
 
-//    @Override
-//    public String toString() {
-//        try {
-//            return new com.fasterxml.jackson.databind.ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(this);
-//        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-//            e.printStackTrace();
-//        }
-//        return null;
-//    }
-
     @Override
     public String toString() {
-        return "AccountStatementDetail{" +
-                "branchCode='" + branchCode + '\'' +
-                ", transactionType=" + transactionType +
-                ", amount=" + amount +
-                ", name='" + name + '\'' +
-                ", remark='" + remark + '\'' +
-                ", transactionDate='" + transactionDate + '\'' +
-                '}';
+        try {
+            return new com.fasterxml.jackson.databind.ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(this);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
+
+//    @Override
+//    public String toString() {
+//        return "'AccountStatementDetail':{" +
+//                "'branchCode':'" + branchCode + '\'' +
+//                ", 'transactionType':" + transactionType +
+//                ", 'amount':" + amount +
+//                ", 'name':" + name  +
+//                ", 'remark':" + remark +
+//                ", 'transactionDate':" + transactionDate +
+//                '}';
+//    }
 }

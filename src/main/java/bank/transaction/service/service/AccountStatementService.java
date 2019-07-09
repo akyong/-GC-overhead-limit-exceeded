@@ -2,6 +2,7 @@ package bank.transaction.service.service;
 
 import bank.transaction.service.domain.AccountStatement;
 import bank.transaction.service.domain.AccountStatementDetail;
+import bank.transaction.service.repository.AccountStatementRepository;
 import io.micronaut.spring.tx.annotation.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,7 +13,7 @@ import javax.validation.constraints.NotNull;
 import java.util.Date;
 import java.util.HashMap;
 
-public class AccountStatementService {
+public class AccountStatementService implements AccountStatementRepository {
     @PersistenceContext
     private EntityManager entityManager;
     private static final Logger LOG = LoggerFactory.getLogger(AccountStatementService.class);
@@ -25,13 +26,16 @@ public class AccountStatementService {
      * @param accountStatement a list of account statement that receive from api.klikbca.com
      * @return accountStatement a list of account statement where already save
      * */
+
+    @Override
     @Transactional
     public AccountStatement saveConditional(@NotNull AccountStatement accountStatement){
+        accountStatement.setBank("BCA");
         HashMap map = CheckIfCurrentDateAlreadyExist(accountStatement.getStartDate(),accountStatement.getEndDate());
-        LOG.info("\n\n\n Account Statement -> {}",accountStatement);
-        LOG.info("\n\n\n MAP -> {}",map.get(map.get("notExist")));
+//        LOG.info("\n\n\n Account Statement -> {}",accountStatement);
+//        LOG.info("\n\n\n MAP -> {}",map.get("notExist"));
         if((Boolean) map.get("notExist") == true){
-            LOG.info("\n\n\n\n Not exist = true");
+//            LOG.info("\n\n\n\n Not exist = true");
             entityManager.persist(accountStatement);
             for (AccountStatementDetail detail: accountStatement.getAccountStatementDetailList() ) {
                 detail.setAccountStatement(accountStatement);
@@ -90,18 +94,21 @@ public class AccountStatementService {
         if(startDate.compareTo(endDate) == 0){
             Query query = entityManager.createQuery("SELECT a FROM AccountStatement as a WHERE a.startDate = :startDate").setParameter("startDate",startDate);
             if(query.getResultList().isEmpty()){
+//                LOG.info("1. 1.");
                 map.put("notExist",true);
                 map.put("result",null);
                 return map;
             }
             else{
-                LOG.info("\n\n=========== IN CheckIfCurrentDateAlreadyExist => {}",query.getResultList().get(0));
+//                LOG.info("2. 2.");
+//                LOG.info("\n\n=========== IN CheckIfCurrentDateAlreadyExist => {}",query.getResultList().get(0));
                 map.put("notExist",false);
                 map.put("result", query.getResultList().get(0));
                 return map;
             }
         }
         else{
+//            LOG.info("3. 3.");
             map.put("notExist",false);
             map.put("result",null);
             return map;

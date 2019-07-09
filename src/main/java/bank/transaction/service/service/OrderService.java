@@ -24,8 +24,6 @@ import bank.transaction.service.domain.*;
 import bank.transaction.service.expedition.Order;
 import bank.transaction.service.expedition.OrderDetail;
 import bank.transaction.service.repository.OrderServiceRepository;
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micronaut.http.MediaType;
 import io.micronaut.spring.tx.annotation.Transactional;
@@ -71,29 +69,30 @@ public class OrderService implements OrderServiceRepository {
 
     /**
      * Step #1
-     * @param amount from account statement detail.amount
+     * @param listamount from account statement detail.amount
      * */
     @Override
-    public void CheckToTokdis(BigDecimal amount){
-        int amountValue = amount.intValue();
+    @Transactional
+    public void CheckToTokdis(List<BigDecimal> listamount){
+//        int amountValue = amount.intValue();
+        String amountin = getListAmount(listamount);
         ResultSet resultSet = null;
         List<Integer> orderIdLIst = new ArrayList<>();
-        try
-                (
-                    Connection con = dataSource.getConnection();
-                    PreparedStatement preparedStatement = con.prepareStatement("select a.*, b.supplier_data->'$.id' as supplier_id , a.reseller_data->'$.id' as reseller_id, date_format(b.awb_expired_at,'%d-%m %Y %h:%m') as awb_expired_at, date_format(b.supplier_feedback_expired_at,'%d-%m %Y %h:%m') as supplier_feedback_expired_at from order_summaries a join order_suppliers b on a.id = b.summaries_id where a.total_amount = ? AND a.is_paid = 0 AND a.is_cancelled = 0 AND a.payment_expired_at >= NOW() AND a.payment_status in (0,3)")
-                )
-        {
 
-            preparedStatement.setInt(1,amountValue);
+        try
+            (
+                Connection con = dataSource.getConnection();
+                PreparedStatement preparedStatement = con.prepareStatement("select a.*, b.supplier_data->'$.id' as supplier_id , a.reseller_data->'$.id' as reseller_id, date_format(b.awb_expired_at,'%d-%m %Y %h:%m') as awb_expired_at, date_format(b.supplier_feedback_expired_at,'%d-%m %Y %h:%m') as supplier_feedback_expired_at from order_summaries a join order_suppliers b on a.id = b.summaries_id where a.total_amount in "+amountin+" AND a.is_paid = 0 AND a.is_cancelled = 0 AND a.payment_expired_at >= NOW() AND (a.payment_status = 0 OR (a.payment_status =3 AND is_payment_uploaded = 1))")
+            )
+        {
             resultSet = preparedStatement.executeQuery();
 
             while(resultSet.next()){
                 orderIdLIst.add(resultSet.getInt("id"));
-
-                updateToTokdis(resultSet.getInt("id"));
-                updateOrderSuppliers(resultSet.getInt("id"));
             }
+            updateToTokdis(orderIdLIst);
+            updateOrderSuppliers(orderIdLIst);
+
             try{
                 HIT_API_TO_SERVER_AFTER_GET_STATEMENT(orderIdLIst);
             }
@@ -107,10 +106,26 @@ public class OrderService implements OrderServiceRepository {
         }
     }
 
+
+    public String getListAmount(List<BigDecimal> listamount){
+        String id = "(";
+        for(int a = 0 ; a< listamount.size(); a++){
+            if(a == listamount.size()-1){
+                id = id+listamount.get(a);
+                id = id+")";
+            }
+            else{
+                id = id+listamount.get(a);
+                id = id+",";
+            }
+        }
+        return id;
+    }
+
     /**
      * TODO update order_summaries and order_supplier
      * Step #2
-     * @param id is field id from table order_summaries
+     * @param listId is field id from table order_summaries
      *
      * */
 
@@ -121,23 +136,23 @@ public class OrderService implements OrderServiceRepository {
      * parameter payment_verified_at ->current date time
      * is_paid -> 1 -> true/paid
      * */
-    public void updateToTokdis(int id){
-        Statement statement = null;
-        ResultSet resultSet = null;
+    @Transactional
+    public void updateToTokdis(List<Integer> listId){
+
+        String idin = getInId(listId);
 
         try
-                (
-                    Connection con = dataSource.getConnection();
-                    PreparedStatement preparedStatement = con.prepareStatement("update order_summaries set payment_status = ? , " +
-                                "payment_verified_by = ? , payment_verified_at = ? , is_paid = ? where id = ?")
-                )
+            (
+                Connection con = dataSource.getConnection();
+                PreparedStatement preparedStatement = con.prepareStatement("update order_summaries set payment_status = ? , " +
+                            "payment_verified_by = ? , payment_verified_at = ? , is_paid = ? where id in "+idin)
+            )
         {
-
             preparedStatement.setInt(1,1);
             preparedStatement.setInt(2,0); //0 => system;
             preparedStatement.setTimestamp(3, new java.sql.Timestamp(new Date().getTime()));
             preparedStatement.setInt(4, 1);
-            preparedStatement.setInt(5, id);
+//            preparedStatement.setInt(5, id);
             preparedStatement.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
@@ -146,16 +161,15 @@ public class OrderService implements OrderServiceRepository {
         try
             (
                 Connection con = dataSource.getConnection();
-                PreparedStatement preparedStatement = con.prepareStatement("update order_suppliers set order_status = ? where summaries_id = ?")
-
+                PreparedStatement preparedStatement = con.prepareStatement("update order_suppliers set order_status = ? where summaries_id in "+idin)
             )
         {
-
             preparedStatement.setInt(1,1);//waiting confirm <DO NOT FORGET TO CHANGE THIS>
-            preparedStatement.setInt(2, id); // id summaries_id;
+//            preparedStatement.setInt(2, id); // id summaries_id;
             preparedStatement.executeUpdate();
 
-        } catch (SQLException e) {
+        }
+        catch (SQLException e) {
             e.printStackTrace();
         }
     }
@@ -164,24 +178,29 @@ public class OrderService implements OrderServiceRepository {
      * auto check expired time every 10s
      * */
     @Override
+    @Transactional
     public void autoUpdatePaymentStatusIfExpired(){
         ResultSet resultSet = null;
-
+        Order order = new Order();
+        List<Integer> listId = new ArrayList<>();
+        List<Integer> listResellerCode = new ArrayList<>();
         try
-                (
-                        Connection con = dataSource.getConnection();
-                        PreparedStatement preparedStatement = con.prepareStatement("select * from order_summaries where payment_status in(0,2) AND payment_expired_at <= ? AND is_paid = 0 AND is_cancelled = 0");
-                )
+            (
+                Connection con = dataSource.getConnection();
+                PreparedStatement preparedStatement = con.prepareStatement("select * from order_summaries where payment_status in(0,2) AND payment_expired_at <= now() AND is_paid = 0 AND is_cancelled = 0");
+            )
         {
-
-            preparedStatement.setTimestamp(1, new java.sql.Timestamp(new Date().getTime()));
             resultSet = preparedStatement.executeQuery();
             while(resultSet.next()){
-                updateOrderSummaries(resultSet.getInt("id"));//id order supplier
-                updateOrderStatusAtOrderSupplier(resultSet.getInt("id"));
-                HashMap<String,List> result = getOrderProductDetail(resultSet.getInt("id"));
+                listId.add(resultSet.getInt("id"));//id order supplier
+                listResellerCode.add(resultSet.getInt("reseller_code"));
+//                HashMap<String,List> result = getOrderProductDetail(resultSet.getInt("id"));S
+            }
 
-                List<HashMap<String,Integer>> itemQtyList = result.get("itemQtyList");
+            HashMap<String,List> result = getOrderProductDetail(listId);
+            List<HashMap<String,Integer>> itemQtyList = result.get("itemQtyList");
+
+            if(itemQtyList != null){
                 String qlstringCase = "case ";
                 String qlstringWhere = " where id in (";
 
@@ -196,7 +215,6 @@ public class OrderService implements OrderServiceRepository {
                     else{
                         qlstringWhere = qlstringWhere+map.get("id_item")+",";
                     }
-
                     index++;
                 }
                 qlstringCase = qlstringCase+"end";
@@ -205,19 +223,25 @@ public class OrderService implements OrderServiceRepository {
                 UpdateItemQuantity(qlstringCase,qlstringWhere);
 
 
-                Order order = new Order();
-                List<OrderDetail> orderDetails =  result.get("orderDetailsList");
-                order =  getInformationToEmail(resultSet.getInt("reseller_code"),order);
-                order.setOrderNumber(resultSet.getString("order_number"));
-                order.setTotalPayment(resultSet.getInt("total_amount"));
-                order.setTotalPrice(resultSet.getInt("subtotal"));
-                order.setShippingAddress(getAddress(resultSet.getInt("id")));
-                order.setPpn(0);
-                order.setOrderDetailList(orderDetails);
-                SendMailNotification(
-                        order,"failed"
-                );
+
+//                List<OrderDetail> orderDetails =  result.get("orderDetailsList");
+//                order =  getInformationToEmail(resultSet.getInt("reseller_code"),order);
+//                order.setOrderNumber(resultSet.getString("order_number"));
+//                order.setTotalPayment(resultSet.getInt("total_amount"));
+//                order.setTotalPrice(resultSet.getInt("subtotal"));
+//                order.setShippingAddress(getAddress(resultSet.getInt("id")));
+//                order.setPpn(0);
+//                order.setOrderDetailList(orderDetails);
+//                SendMailNotification(
+//                        order,"failed"
+//                );
             }
+
+            if(listId.size() > 0){
+                updateOrderSummaries(listId);
+                updateOrderStatusAtOrderSupplier(listId);
+            }
+
         } catch (SQLException e) {
             e.printStackTrace();
         } catch (Exception e) {
@@ -231,19 +255,24 @@ public class OrderService implements OrderServiceRepository {
      * payment status => 2
      * is_cancelled = 1
      * */
-    public void updateOrderSummaries(int id){
-        Statement statement = null;
-        ResultSet resultSet = null;
+    @Transactional
+    public void updateOrderSummaries(List<Integer> listid){
+        LOG.info("updateOrderSummaries({})",listid);
+
+        String inId = getInId(listid);
+
+        LOG.info("id to string ==>>> {}", inId);
+
         try
                 (
                     Connection con = dataSource.getConnection();
                     PreparedStatement preparedStatement = con.prepareStatement("update order_summaries set payment_status = ? , " +
-                            "is_cancelled = ? where id = ?")
+                            "is_cancelled = ? where id in "+inId)
                 )
         {
             preparedStatement.setInt(1,2);
             preparedStatement.setInt(2,1);
-            preparedStatement.setInt(3, id);
+//            preparedStatement.setString(3, inId);
             preparedStatement.executeUpdate();
 
         } catch (SQLException e) {
@@ -251,19 +280,39 @@ public class OrderService implements OrderServiceRepository {
         }
     }
 
+    /**1
+     * @return string (1,2,3,4)
+     * */
+    public String getInId(List<Integer> listid){
+        String id = "(";
+        for(int a = 0 ; a< listid.size(); a++){
+            if(a == listid.size()-1){
+                id = id+listid.get(a);
+                id = id+")";
+            }
+            else{
+                id = id+listid.get(a);
+                id = id+",";
+            }
+        }
+        return id;
+    }
+
     /**
      * update if ordrder expired
      * */
-    public void updateOrderStatusAtOrderSupplier(int id){
-        Statement statement = null;
-        ResultSet resultSet = null;
+    @Transactional
+    public void updateOrderStatusAtOrderSupplier(List<Integer> listid){
+        LOG.info("updateOrderStatusAtOrderSupplier({})",listid);
+
+        String inId = getInId(listid);
+
         try
                 (
                     Connection con = dataSource.getConnection();
-                    PreparedStatement preparedStatement = con.prepareStatement("update order_suppliers set order_status = 2 , reason_rejected = 'SYSTEM_REJECTED_REASON_0', rejected_at = NOW(), is_rejected_by_system = 1, is_rejected = 1 where summaries_id = ?")
+                    PreparedStatement preparedStatement = con.prepareStatement("update order_suppliers set order_status = 2 , reason_rejected = 'SYSTEM_REJECTED_REASON_0', rejected_at = NOW(), is_rejected_by_system = 1, is_rejected = 1 where summaries_id in "+inId)
                 )
         {
-            preparedStatement.setInt(1,id);
             preparedStatement.executeUpdate();
 
         } catch (SQLException e) {
@@ -275,7 +324,9 @@ public class OrderService implements OrderServiceRepository {
      * TODO if payment is success, update supplier_feedback_expired_at and order_status
      * @params id -> summaries_id
      * */
-    public void updateOrderSuppliers(int id){
+    @Transactional
+    public void updateOrderSuppliers(List<Integer> listid){
+        String idin = getInId(listid);
         Statement statement = null;
         ResultSet resultSet = null;
         try
@@ -283,11 +334,11 @@ public class OrderService implements OrderServiceRepository {
                     Connection con = dataSource.getConnection();
                     PreparedStatement preparedStatement = con.prepareStatement("update order_suppliers set supplier_feedback_expired_at = DATE_ADD(SYSDATE(), INTERVAL 3 DAY)  ," +
                             "supplier_feedback_expired_time = UNIX_TIMESTAMP(DATE_ADD(SYSDATE(), INTERVAL 3 DAY)) ," +
-                            "order_status = ? where summaries_id = ?");
+                            "order_status = ? where summaries_id in "+idin);
                 )
         {
             preparedStatement.setInt(1,1);
-            preparedStatement.setInt(2, id);
+//            preparedStatement.setInt(2, id);
             preparedStatement.executeUpdate();
 
         } catch (SQLException e) {
@@ -325,6 +376,7 @@ public class OrderService implements OrderServiceRepository {
         }
     }
 
+
     public void SendMailNotification(Order order, String status) throws Exception {
         String URL_TOKDIS ="http://13.250.223.74:3001/api/v1/email/transaction/"+status;
         URL obj = new URL(URL_TOKDIS);
@@ -352,18 +404,19 @@ public class OrderService implements OrderServiceRepository {
         in.close();
     }
 
+    @Transactional
     public Order getInformationToEmail(int id,Order order){
         Statement statement = null;
         ResultSet resultSet = null;
         HashMap map = new HashMap();
+//        String idin = getInId(listid);
 
         try
-                (
-                        Connection con = dataSourceTokdisdev.getConnection();
-                        PreparedStatement preparedStatement = con.prepareStatement("select * from reseller where id = ? ");
-                )
+            (
+                Connection con = dataSourceTokdisdev.getConnection();
+                PreparedStatement preparedStatement = con.prepareStatement("select * from reseller where id = ? ");
+            )
         {
-
             preparedStatement.setInt(1, id);
             resultSet = preparedStatement.executeQuery();
             while(resultSet.next()){
@@ -381,7 +434,7 @@ public class OrderService implements OrderServiceRepository {
         return order;
     }
 
-
+    @Transactional
     public String getAddress(int id){
 
         ResultSet resultSet = null;
@@ -389,11 +442,11 @@ public class OrderService implements OrderServiceRepository {
         HashMap map = new HashMap();
 
         try
-                (
-                        Connection con = dataSource.getConnection();
-                        PreparedStatement preparedStatement = con.prepareStatement("select receiver->'$.address' as alamat from order_suppliers where summaries_id = ? LIMIT 1 ");
+            (
+                Connection con = dataSource.getConnection();
+                PreparedStatement preparedStatement = con.prepareStatement("select receiver->'$.address' as alamat from order_suppliers where summaries_id = ? LIMIT 1 ");
 
-                )
+            )
         {
             preparedStatement.setInt(1, id);
             resultSet = preparedStatement.executeQuery();
@@ -406,59 +459,58 @@ public class OrderService implements OrderServiceRepository {
         return alamat;
     }
 
-    public  HashMap<String,List> getOrderProductDetail(int id){
-        Statement statement = null;
+    @Transactional
+    public  HashMap<String,List> getOrderProductDetail(List<Integer> listId){
         ResultSet resultSet = null;
         List<OrderDetail> tampung = new ArrayList<>();
         List<HashMap<String,Integer>> itemAndQty = new ArrayList<>();
         HashMap<String,List> result = new HashMap<>();
 
-        try
-                (
-                    Connection con = dataSource.getConnection();
-                    PreparedStatement preparedStatement = con.prepareStatement("select a.product_data, a.product_variation->'$[*].id' as id_item, a.product_variation->'$[*].qty' as qty from order_products a join order_suppliers b on a.order_supplier_id = b.id join order_summaries c on b.summaries_id = c.id where c.id = ?");
-                )
-        {
+        if(listId.size() >= 1){
+            String idIn = getInId(listId);
+            try
+                    (
+                            Connection con = dataSource.getConnection();
+                            PreparedStatement preparedStatement = con.prepareStatement("select a.product_data, a.product_variation->'$[*].id' as id_item, a.product_variation->'$[*].qty' as qty from order_products a join order_suppliers b on a.order_supplier_id = b.id join order_summaries c on b.summaries_id = c.id where c.id in "+idIn);
+                    )
+            {
+                resultSet = preparedStatement.executeQuery();
 
-            preparedStatement.setInt(1, id);
-            resultSet = preparedStatement.executeQuery();
+                while(resultSet.next()){
+                    String jsonString = resultSet.getString("product_data");
+                    String getItemList = resultSet.getString("id_item");
+                    String getQtyList = resultSet.getString("qty");
+                    getItemList = getItemList.replace("[","").replace("]","").replace(" ","");
+                    getQtyList = getQtyList.replace("[","").replace("]","").replace(" ","");
+                    List<String> idItemList = new ArrayList<>(Arrays.asList(getItemList.split(",")));
+                    List<String> qtyItemList = new ArrayList<>(Arrays.asList(getQtyList.split(",")));
 
-            while(resultSet.next()){
-                String jsonString = resultSet.getString("product_data");
-                String getItemList = resultSet.getString("id_item");
-                String getQtyList = resultSet.getString("qty");
-                getItemList = getItemList.replace("[","").replace("]","").replace(" ","");
-                getQtyList = getQtyList.replace("[","").replace("]","").replace(" ","");
-                List<String> idItemList = new ArrayList<>(Arrays.asList(getItemList.split(",")));
-                List<String> qtyItemList = new ArrayList<>(Arrays.asList(getQtyList.split(",")));
+                    IntStream.range(0, idItemList.size())
+                            .forEach(idx ->
+                                    {
+                                        HashMap<String,Integer> map = new HashMap();
+                                        map.put("id_item",Integer.parseInt(idItemList.get(idx)));
+                                        map.put("qty",Integer.parseInt(qtyItemList.get(idx)));
+                                        itemAndQty.add(map);
+                                    }
+                            );
 
-                IntStream.range(0, idItemList.size())
-                        .forEach(idx ->
-                                {
-                                    HashMap<String,Integer> map = new HashMap();
-                                    map.put("id_item",Integer.parseInt(idItemList.get(idx)));
-                                    map.put("qty",Integer.parseInt(qtyItemList.get(idx)));
-                                    itemAndQty.add(map);
-                                }
-                        );
+                    ObjectMapper mapper = new ObjectMapper();
+                    OrderDetail orderDetail = mapper.readValue(jsonString, OrderDetail.class);
+                    tampung.add(orderDetail);
 
-                ObjectMapper mapper = new ObjectMapper();
-                OrderDetail orderDetail = mapper.readValue(jsonString, OrderDetail.class);
-                tampung.add(orderDetail);
+                }
+                result.put("orderDetailsList",tampung);
+                result.put("itemQtyList",itemAndQty);
 
+            } catch (SQLException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-            result.put("orderDetailsList",tampung);
-            result.put("itemQtyList",itemAndQty);
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-        } catch (JsonParseException e) {
-            e.printStackTrace();
-        } catch (JsonMappingException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
         }
+
+
         return result;
     }
 
@@ -498,12 +550,9 @@ public class OrderService implements OrderServiceRepository {
             e.printStackTrace();
         }
     }
-
+    @Transactional
     public List<InvoiceIdAndResellerCode> getListOrderSupplierWantToBeDone(){
-        Statement statement = null;
         ResultSet resultSet = null;
-
-
 
         List<InvoiceIdAndResellerCode> invoiceIdAndResellerCodeList = new ArrayList<>();
 
@@ -528,7 +577,7 @@ public class OrderService implements OrderServiceRepository {
         return invoiceIdAndResellerCodeList;
 
     }
-
+    @Transactional
     public void sendNotifWhereStatusIsDone(){
         Statement statement = null;
         ResultSet resultSet = null;
@@ -554,10 +603,6 @@ public class OrderService implements OrderServiceRepository {
 
     @Transactional
     public void updateOrderStatusRejected(){
-
-        Statement statement = null;
-        ResultSet resultSet = null;
-
         UpdateQuantityOfItemWhenRejectOrder();
         try
                 (
@@ -577,9 +622,8 @@ public class OrderService implements OrderServiceRepository {
             e.printStackTrace();
         }
     }
-
+    @Transactional
     public List<Integer> GET_LIST_INVOICE_ID_FOR_STATUS_REJECTED(){
-        Statement statement = null;
         ResultSet resultSet = null;
         List<Integer> listId = new ArrayList<>();
         try
@@ -600,20 +644,16 @@ public class OrderService implements OrderServiceRepository {
         return listId;
     }
 
+    @Transactional
     public List<HashMap<String,Integer>> getAllItemWhereWantToUpdateIt(){
-
-        Statement statement = null;
         ResultSet resultSet = null;
-
         List<HashMap<String,Integer>> itemAndQty = new ArrayList<>();
-
         try
             (
                 Connection con = dataSource.getConnection();
                 PreparedStatement preparedStatement = con.prepareStatement("select b.product_variation->'$[*].id' as id_item, b.product_variation->'$[*].qty' as qty from order_suppliers a join order_products b on b.order_supplier_id = a.id where a.supplier_feedback_expired_at < NOW() AND a.supplier_feedback_at is null AND a.order_status = 1");
             )
         {
-
             resultSet = preparedStatement.executeQuery();
             while(resultSet.next()){
                 HashMap<String,Integer> map = new HashMap();
@@ -629,10 +669,7 @@ public class OrderService implements OrderServiceRepository {
                     map.put("qty",listQty[a]);
                     itemAndQty.add(map);
                 }
-
-
             }
-
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -640,9 +677,9 @@ public class OrderService implements OrderServiceRepository {
         return itemAndQty;
     }
 
+    @Transactional
     public void UpdateQuantityOfItemWhenRejectOrder(){
         List<HashMap<String,Integer>> itemQtyList = getAllItemWhereWantToUpdateIt(); //METHOD
-
         String qlstringCase = "case ";
         String qlstringWhere = " where id in (";
 
@@ -670,7 +707,6 @@ public class OrderService implements OrderServiceRepository {
     @Override
     @Transactional
     public void UpdateIsRejectedIfSupplierNotSentTheOrder(){
-
         /**
          * @NOTED + brankas
          * */
@@ -693,9 +729,9 @@ public class OrderService implements OrderServiceRepository {
         }
     }
 
+    @Transactional
     public List<Integer> GET_LIST_INVOICE_ID(){
         ResultSet resultSet = null;
-
         List<Integer> listId = new ArrayList<>();
 
         try
@@ -717,6 +753,7 @@ public class OrderService implements OrderServiceRepository {
         return listId;
     }
 
+    @Transactional
     public List<Integer> CheckOrderSummariesGetAllCompletedIsNull(){
 
         Statement statement = null;
@@ -740,9 +777,8 @@ public class OrderService implements OrderServiceRepository {
         return listOrderSummaries;
     }
 
+    @Transactional
     public void UpdateItemQuantity(String qlStringCase, String qlStringWhere){
-        Statement statement = null;
-        ResultSet resultSet = null;
         try
             (
                 Connection con = dataSourceTokdisdev.getConnection();
@@ -759,9 +795,6 @@ public class OrderService implements OrderServiceRepository {
     @Override
     @Transactional
     public void checkForReminder(){
-        Statement statement = null;
-        ResultSet resultSet = null;
-
         Email email = new Email();
         EmailPayment emailPayment = new EmailPayment();
         List<EmailPayment> emailPaymentList = new ArrayList<>();
@@ -772,7 +805,7 @@ public class OrderService implements OrderServiceRepository {
                     PreparedStatement preparedStatement = con.prepareStatement("select a.id, a.payment_expired_at, a.order_number, a.total_amount, a.subtotal, a.transfer_unique_number, a.payment_data->'$.method' as method, a.payment_data->'$.via.BANK[0].code' as vendor, a.payment_data->'$.via.BANK[0].icon' as vendor_icon, a.payment_data->'$.via.BANK[0].name' as account_name, a.payment_data->'$.via.BANK[0].number' as account_number, b.shipping_data->'$.price' as shipping_fee, b.supplier_data->'$.id' as supplier_id, a.reseller_data->'$.id' as reseller_id from order_summaries a join order_suppliers b on a.id = b.summaries_id  LEFT join notifications d  on (a.id <> d.cols_id and codes = 'PAYMENT_REMINDER' and types = 'ONE_SIGNAL' ) where a.payment_status = 0 AND a.is_paid = 0 AND a.is_cancelled = 0 AND a.payment_expired_at <= DATE_SUB(NOW(), interval -1 hour)");
             )
         {
-            resultSet = preparedStatement.executeQuery();
+            ResultSet resultSet = preparedStatement.executeQuery();
             while(resultSet.next()){
                 Timestamp timestamp = resultSet.getTimestamp("payment_expired_at");
                 Date paymentExpiredAt = new Date(timestamp.getTime());
@@ -814,10 +847,12 @@ public class OrderService implements OrderServiceRepository {
 //                sendNotifOneSignalSupplierForReminder(Integer.parseInt(supplierId), messageText);
 //                sendNotifOneSignalResellerForReminder(Integer.parseInt(resellerId),messageText);//ini yang diuncoment buat cek sudah keinsert aatau belum tanggal 19 juli 2019
 
-                CreateLogNotificationForReminder(resultSet.getInt("id"));
+//                CreateLogNotificationForReminder(resultSet.getInt("id"));
 
 
             }
+
+            resultSet.close();
 
         } catch (SQLException e) {
             e.printStackTrace();
@@ -828,9 +863,8 @@ public class OrderService implements OrderServiceRepository {
         }
     }
 
+    @Transactional
     public Email GetEmailOrderDetailForReminder(int id,Email email){
-
-        Statement statement = null;
         ResultSet resultSet = null;
         List<EmailOrderDetail> emailOrderDetailList = new ArrayList<>();
         try
@@ -875,11 +909,9 @@ public class OrderService implements OrderServiceRepository {
     }
 
 
+    @Transactional
     public Email getEmailInformation(int id, Email email) throws IOException {
-
-        Statement statement = null;
         ResultSet resultSet = null;
-
 
         try
             (
@@ -900,6 +932,7 @@ public class OrderService implements OrderServiceRepository {
         return email;
     }
 
+    @Transactional
     public void SendMailConfirm(Email email, String status) throws Exception {
         String URL_TOKDIS ="http://13.250.223.74:3001/api/v1/email/payment/"+status;
         URL obj = new URL(URL_TOKDIS);
@@ -908,8 +941,6 @@ public class OrderService implements OrderServiceRepository {
         //add reuqest header
         connection.setRequestMethod("POST");
         connection.setRequestProperty("Content-Type", MediaType.APPLICATION_JSON);
-
-//        String urlParameters = "order_number="+order.getOrderNumber()+"&email_to="+order.getEmailTo()+"&customer_name="+order.getCustomerName()+"&shipping_address="+order.getShippingAddress()+"&phone_number="+order.getPhoneNo()+"&total_price="+order.getTotalPrice()+"&total_payment="+order.getTotalPayment();
 
         // Send post request
         connection.setDoOutput(true);
@@ -1015,13 +1046,11 @@ public class OrderService implements OrderServiceRepository {
     }
 
 
+    @Transactional
     public OneSignal getSupplierIDForSendOneSignal(OneSignal oneSignal, int id){//supplier id
-
-        Statement statement = null;
         ResultSet resultSet = null;
 
         HashMap map = new HashMap();
-        String playerId = "";
 
         try
             (
@@ -1044,9 +1073,8 @@ public class OrderService implements OrderServiceRepository {
     }
 
     //TODO get Supplier -> player_id
+    @Transactional
     public OneSignal getSupplierCodeForSendOneSignal(OneSignal oneSignal, String code){//supplier code
-
-        Statement statement = null;
         ResultSet resultSet = null;
 
 
@@ -1068,10 +1096,9 @@ public class OrderService implements OrderServiceRepository {
 
     }
 
+    @Transactional
     public OneSignal getResellerIDForSendOneSignal(OneSignal oneSignal, int id){//supplier id
-        Statement statement = null;
         ResultSet resultSet = null;
-
         try
             (
                 Connection con = dataSourceTokdisdev.getConnection();
@@ -1092,6 +1119,7 @@ public class OrderService implements OrderServiceRepository {
 
     }
 
+    @Transactional
     public void sendSMSNotification(String phoneNo, String message) throws Exception {
         String URL_TOKDIS ="http://13.250.223.74:3001/api/v1/notification/sms";
         URL obj = new URL(URL_TOKDIS);
@@ -1118,12 +1146,10 @@ public class OrderService implements OrderServiceRepository {
         while ((inputLine = in.readLine()) != null) {
             response.append(inputLine);
         }
-//        LOG.info("\n\n\n Response => {}",response);
         in.close();
     }
 
     public String getPhoneNoSupplierById(int id){//supplier id
-        Statement statement = null;
         ResultSet resultSet = null;
 
         String phoneNo = "";
@@ -1133,8 +1159,6 @@ public class OrderService implements OrderServiceRepository {
                 PreparedStatement preparedStatement = con.prepareStatement("select handphone_no from supplier where id = ? ");
             )
         {
-
-
             preparedStatement.setInt(1, id);
             resultSet = preparedStatement.executeQuery();
             while(resultSet.next()){
@@ -1148,9 +1172,8 @@ public class OrderService implements OrderServiceRepository {
 
     }
 
+    @Transactional
     public void sentNotifMustSentItem(){
-
-        Statement statement = null;
         ResultSet resultSet = null;
 
         try
@@ -1181,36 +1204,30 @@ public class OrderService implements OrderServiceRepository {
         }
     }
 
+    @Transactional
     public void CreateLogNotification(int orderSupplierId){
-        Connection con = null;
         Statement statement = null;
         ResultSet resultSet = null;
-        PreparedStatement preparedStatement = null;
 
-        try {
-            con = dataSource.getConnection();
-            preparedStatement = con.prepareStatement("insert into notifications(cols_id,codes,types,created_by,created_at) values(?, 'SEND_ORDER','ONE_SIGNAL',0,now())");
+        try
+            (
+                Connection con = dataSource.getConnection();
+                PreparedStatement preparedStatement = con.prepareStatement("insert into notifications(cols_id,codes,types,created_by,created_at) values(?, 'SEND_ORDER','ONE_SIGNAL',0,now())");
+            )
+        {
             preparedStatement.setInt(1,orderSupplierId);
             preparedStatement.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
-        } finally{
-            try {
-                if(resultSet != null) resultSet.close();
-                if(statement != null) statement.close();
-                if(con != null) con.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
         }
     }
 
+    @Transactional
     public void CreateLogNotificationForReminder(int orderSummariesId){
         try
             (
                 Connection con = dataSource.getConnection();
                 PreparedStatement preparedStatement = con.prepareStatement("insert into notifications(cols_id,codes,types,created_by,created_at) values(?, 'PAYMENT_REMINDER','ONE_SIGNAL',0,now())");
-
             )
         {
 
@@ -1222,6 +1239,7 @@ public class OrderService implements OrderServiceRepository {
     }
 
     //TODO get Supplier -> player_id
+    @Transactional
     public Integer getSupplierIDByCodeForSendOneSignal(String code){//supplier code
         Statement statement = null;
         ResultSet resultSet = null;
@@ -1245,6 +1263,7 @@ public class OrderService implements OrderServiceRepository {
         return supplierId;
     }
 
+    @Transactional
     public Email getSentEmail(int id, String status){
 
         Statement statement = null;
@@ -1304,7 +1323,6 @@ public class OrderService implements OrderServiceRepository {
     }
 
     public void HIT_API_TO_SERVER_AFTER_GET_STATEMENT(List<Integer> listOrderId) throws Exception {
-
         String URL_TOKDIS = "";
         if (common.LOG_NOTIF=="dev")
         {
@@ -1342,7 +1360,6 @@ public class OrderService implements OrderServiceRepository {
     }
 
     public void HIT_API_TO_SERVER_AFTER_ORDER_IS_DONE(List<InvoiceIdAndResellerCode> invoiceIdAndResellerCodeList) throws Exception {
-
         String URL_TOKDIS = "";
         if (common.LOG_NOTIF=="dev")
         {
@@ -1359,8 +1376,6 @@ public class OrderService implements OrderServiceRepository {
         ObjectMapper mapper = new ObjectMapper();
 
         String jsonformat = mapper.writeValueAsString(invoiceIdAndResellerCodeList);
-
-//        LOG.info("\n\n\n=========== {}",abc);
 
         //add reuqest header
         connection.setRequestMethod("POST");
@@ -1380,18 +1395,17 @@ public class OrderService implements OrderServiceRepository {
         while ((inputLine = in.readLine()) != null) {
             response.append(inputLine);
         }
-//        LOG.info("\n\n\n Response => {}",response);
         in.close();
     }
 
     @Override
+    @Transactional
     public String COMPLETE_TRX(@NotNull List<Integer> idList){
         ResponseModel response = new ResponseModel();
         try {
-            idList.forEach(it->{
-                updateToTokdis(it);
-                updateOrderSuppliers(it);
-            });
+
+            updateToTokdis(idList);
+            updateOrderSuppliers(idList);
 
             HIT_API_TO_SERVER_AFTER_GET_STATEMENT(idList);
 
@@ -1407,9 +1421,7 @@ public class OrderService implements OrderServiceRepository {
             response.setData("{}");
             ex.printStackTrace();
         }
-
         return response.toString();
-
     }
 
 }

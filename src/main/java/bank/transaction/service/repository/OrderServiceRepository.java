@@ -24,7 +24,7 @@ import java.util.List;
 
 public interface OrderServiceRepository {
     void autoUpdatePaymentStatusIfExpired();
-    void CheckToTokdis(BigDecimal amount);
+    void CheckToTokdis(List<BigDecimal> listamount);
     void updateOrderStatusToDone();
     void updateOrderStatusRejected();
     void UpdateIsRejectedIfSupplierNotSentTheOrder();

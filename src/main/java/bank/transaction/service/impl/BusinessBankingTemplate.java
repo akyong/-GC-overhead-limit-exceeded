@@ -2,6 +2,9 @@
 package bank.transaction.service.impl;
 
 import bank.transaction.service.domain.*;
+import bank.transaction.service.scheduler.TransactionCheckerJob;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.client.RestTemplate;
 import javax.inject.Singleton;
 import java.text.SimpleDateFormat;
@@ -10,7 +13,7 @@ import java.util.*;
 @Singleton
 public class BusinessBankingTemplate extends AbstractBCAOperations implements BusinessBankingOperations {
 
-
+    private static final Logger LOG = LoggerFactory.getLogger(BusinessBankingTemplate.class);
     public BusinessBankingTemplate(RestTemplate restTemplate) {
         this.restTemplate = restTemplate;
     }

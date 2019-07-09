@@ -19,5 +19,11 @@
 
 package bank.transaction.service.repository;
 
+import bank.transaction.service.domain.AccountStatement;
+
+import javax.validation.constraints.NotNull;
+
 public interface AccountStatementRepository {
+
+    AccountStatement saveConditional(@NotNull AccountStatement accountStatement);
 }

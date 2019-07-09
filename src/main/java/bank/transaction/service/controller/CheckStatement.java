@@ -12,17 +12,14 @@ import bank.transaction.service.repository.Oauth2Operations;
 import bank.transaction.service.repository.OrderServiceRepository;
 import bank.transaction.service.service.AccountStatementService;
 import io.micronaut.http.annotation.Controller;
-import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.client.RestTemplate;
 
 import javax.validation.constraints.NotNull;
-import java.util.Calendar;
-import java.util.Collections;
-import java.util.Date;
-import java.util.GregorianCalendar;
+import java.math.BigDecimal;
+import java.util.*;
 
 @Controller("/cek-statement")
 public class CheckStatement {
@@ -43,7 +40,7 @@ public class CheckStatement {
     public String checkstatement(@NotNull int month, @NotNull int day){
         AccountStatement ac = null;
         Calendar now = Calendar.getInstance();
-
+        List<BigDecimal> listAmount = new ArrayList<>();
 
         Date fromDate = toDate(2019, month,day);
         Date endDate = toDate(2019, month, day);
@@ -57,8 +54,10 @@ public class CheckStatement {
             ac = accountStatementService.saveConditional(businessBankingTemplate.getStatement(common.BCA_CORPORATE_ID,common.BCA_ACCOUNT_NUMBER, fromDate, endDate));
             LOG.info("RESULT -- : {}",ac.toString());
             for (AccountStatementDetail acd: ac.getAccountStatementDetailList()) {
-                orderServiceRepository.CheckToTokdis(acd.getAmount());
+               listAmount.add(acd.getAmount());
             }
+
+            orderServiceRepository.CheckToTokdis(listAmount);
         }
         catch (Exception ex){
             LOG.error("----------- NO TRANSACTION!!!!");
@@ -80,5 +79,21 @@ public class CheckStatement {
         Calendar calendar = new GregorianCalendar(year, month - 1, day);
         return new Date(calendar.getTimeInMillis());
     }
+
+    public String getListAmount(List<BigDecimal> listamount){
+        String id = "(";
+        for(int a = 0 ; a< listamount.size(); a++){
+            if(a == listamount.size()-1){
+                id = id+listamount.get(a);
+                id = id+")";
+            }
+            else{
+                id = id+listamount.get(a);
+                id = id+",";
+            }
+        }
+        return id;
+    }
+
 
 }
