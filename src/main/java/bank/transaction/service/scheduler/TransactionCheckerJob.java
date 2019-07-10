@@ -5,7 +5,6 @@ import bank.transaction.service.impl.*;
 import bank.transaction.service.repository.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.math.BigDecimal;
 import java.util.*;
 import javax.inject.Singleton;
@@ -22,17 +21,14 @@ public class TransactionCheckerJob {
     private final BcaService bcaService;
     private final Oauth2Template oauth2Template;
     private final Common common;
-//    private final BCATransactionInterceptor bcaTransactionInterceptor;
-
-
-    protected AccessGrant accessGrant;
-    private BusinessBankingTemplate businessBankingTemplate;
-    private RestTemplate restTemplate;
     private final AccountStatementRepository accountStatementRepository;
     private final OrderServiceRepository orderServiceRepository;
     private final Oauth2OperationsBNI oauth2OperationsBNI;
     private final ExpeditionRepository expeditionRepository;
     private final BNIBankingTemplate bniBankingTemplate;
+    protected AccessGrant accessGrant;
+    private BusinessBankingTemplate businessBankingTemplate;
+    private RestTemplate restTemplate;
 
     public TransactionCheckerJob(Common common, BNIBankingTemplate bniBankingTemplate,ExpeditionRepository expeditionRepository, OrderServiceRepository orderServiceRepository, BcaService bcaService, Oauth2Template oauth2Template, Oauth2OperationsBNI oauth2OperationsBNI, RestTemplate restTemplate, AccountStatementRepository accountStatementRepository){
         this.bcaService = bcaService;
@@ -46,7 +42,6 @@ public class TransactionCheckerJob {
         this.common = common;
     }
 
-
     /**
      * Case No. 1 Reseller ->lebih dari 6 jam batas pembayaran
      * TODO Auto Check jika pembayaran expired -> if payment_status = 0 and payment_expired_at < now()
@@ -59,43 +54,41 @@ public class TransactionCheckerJob {
         orderServiceRepository.autoUpdatePaymentStatusIfExpired();
     }
 
-//    /**
-//     * Case No. 2 -> Reseller sudah melakukan pembayaran -> Approve akan otomatsi berjalan dan transaksi akan otomatis diteruskan ke supplier
-//     * TODO update order sumarries ->payment_status = 1, payment_verified_by = 0, payment_verified_at = now(), is_paid = 1
-//     * TODO update order suppliers ->supplier_feedback_expired_AT = now()+1 DAY, order_status = 1
-//     * TODO Send NotificationSupplier ONESIGNAL "Pesanan Berhasil dibayar" -> "Pembayaran pesananmu TDO/20190225/0000160 telah dikonfirmasi dan diteruskan ke penjual. Silahkan tunggu pesanan dikirim."
-//     * */
-//    @Scheduled(fixedDelay = "270s", initialDelay = "35s")
-//    void executeEveryTen() throws Exception {
-//        List<BigDecimal> listAmount = new ArrayList<>();
-//        Calendar now = Calendar.getInstance();
-//        int year = now.get(Calendar.YEAR);
-//        int month = now.get(Calendar.MONTH) + 1; // Note: zero based!
-//        int day = now.get(Calendar.DAY_OF_MONTH);
-//
-////        Date fromDate = toDate(2016, 9,1);
-////        Date endDate = toDate(2016, 9, 1);
-//
-//        Date fromDate = toDate(year, month,day);
-//        Date endDate = toDate(year, month, day);
-//
-////        AccessGrant testGetTokenBNI = oauth2OperationsBNI.getToken("d78e500c-76c1-49e8-a4d8-41c5154b150e","ad0882f2-b9b4-46c2-beca-ff2946e4e1aa");
-//        /** THIS IS IMPORTANT */
-//        BusinessBankingTemplate businessBankingTemplate = new BusinessBankingTemplate(getRestTemplate());
-//        try {
-//            AccountStatement ac = accountStatementRepository.saveConditional(businessBankingTemplate.getStatement(common.BCA_CORPORATE_ID,common.BCA_ACCOUNT_NUMBER, fromDate, endDate));
-//
-//            for (AccountStatementDetail acd: ac.getAccountStatementDetailList()) {
-//                listAmount.add(acd.getAmount());
-//            }
-//            orderServiceRepository.CheckToTokdis(listAmount);
-//        }
-//        catch (Exception ex){
-//            LOG.error("----------- NO TRANSACTION!!!!");
-//        }
-//    }
+    /**
+     * Case No. 2 -> Reseller sudah melakukan pembayaran -> Approve akan otomatsi berjalan dan transaksi akan otomatis diteruskan ke supplier
+     * TODO update order sumarries ->payment_status = 1, payment_verified_by = 0, payment_verified_at = now(), is_paid = 1
+     * TODO update order suppliers ->supplier_feedback_expired_AT = now()+1 DAY, order_status = 1
+     * TODO Send NotificationSupplier ONESIGNAL "Pesanan Berhasil dibayar" -> "Pembayaran pesananmu TDO/20190225/0000160 telah dikonfirmasi dan diteruskan ke penjual. Silahkan tunggu pesanan dikirim."
+     * */
+    @Scheduled(fixedDelay = "270s", initialDelay = "35s")
+    void executeEveryTen() throws Exception {
+        List<BigDecimal> listAmount = new ArrayList<>();
+        Calendar now = Calendar.getInstance();
+        int year = now.get(Calendar.YEAR);
+        int month = now.get(Calendar.MONTH) + 1; // Note: zero based!
+        int day = now.get(Calendar.DAY_OF_MONTH);
 
+//        Date fromDate = toDate(2016, 9,1);
+//        Date endDate = toDate(2016, 9, 1);
 
+        Date fromDate = toDate(year, month,day);
+        Date endDate = toDate(year, month, day);
+
+//        AccessGrant testGetTokenBNI = oauth2OperationsBNI.getToken("d78e500c-76c1-49e8-a4d8-41c5154b150e","ad0882f2-b9b4-46c2-beca-ff2946e4e1aa");
+        /** THIS IS IMPORTANT */
+        BusinessBankingTemplate businessBankingTemplate = new BusinessBankingTemplate(getRestTemplate());
+        try {
+            AccountStatement ac = accountStatementRepository.saveConditional(businessBankingTemplate.getStatement(common.BCA_CORPORATE_ID,common.BCA_ACCOUNT_NUMBER, fromDate, endDate));
+
+            for (AccountStatementDetail acd: ac.getAccountStatementDetailList()) {
+                listAmount.add(acd.getAmount());
+            }
+            orderServiceRepository.CheckToTokdis(listAmount);
+        }
+        catch (Exception ex){
+            LOG.error("----------- NO TRANSACTION!!!!");
+        }
+    }
 
     /**
      * Case No. 3 Reseller -> Dikirim -> Pesanan kaan otomatis pindah ke transaksi sampai
@@ -192,5 +185,3 @@ public class TransactionCheckerJob {
         return new Date(calendar.getTimeInMillis());
     }
 }
-
-//https://www.mkyong.com/java/how-to-send-http-request-getpost-in-java/

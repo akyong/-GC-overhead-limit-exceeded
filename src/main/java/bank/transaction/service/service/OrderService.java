@@ -90,8 +90,12 @@ public class OrderService implements OrderServiceRepository {
             while(resultSet.next()){
                 orderIdLIst.add(resultSet.getInt("id"));
             }
-            updateToTokdis(orderIdLIst);
-            updateOrderSuppliers(orderIdLIst);
+
+            if(orderIdLIst.size() > 0){
+                updateToTokdis(orderIdLIst);
+                updateOrderSuppliers(orderIdLIst);
+            }
+
 
             try{
                 HIT_API_TO_SERVER_AFTER_GET_STATEMENT(orderIdLIst);
@@ -140,18 +144,18 @@ public class OrderService implements OrderServiceRepository {
     public void updateToTokdis(List<Integer> listId){
 
         String idin = getInId(listId);
+        LOG.info("idn ==> {}",idin);
 
         try
             (
                 Connection con = dataSource.getConnection();
-                PreparedStatement preparedStatement = con.prepareStatement("update order_summaries set payment_status = ? , " +
-                            "payment_verified_by = ? , payment_verified_at = ? , is_paid = ? where id in "+idin)
+                PreparedStatement preparedStatement = con.prepareStatement("update order_summaries set payment_status = ? ,payment_verified_by = ? ,payment_verified_at = now(), is_paid = ? where id in "+idin)
             )
         {
             preparedStatement.setInt(1,1);
             preparedStatement.setInt(2,0); //0 => system;
-            preparedStatement.setTimestamp(3, new java.sql.Timestamp(new Date().getTime()));
-            preparedStatement.setInt(4, 1);
+//            preparedStatement.setTimestamp(3, new java.sql.Timestamp(new Date().getTime()));
+            preparedStatement.setInt(3, 1);
 //            preparedStatement.setInt(5, id);
             preparedStatement.executeUpdate();
         } catch (SQLException e) {

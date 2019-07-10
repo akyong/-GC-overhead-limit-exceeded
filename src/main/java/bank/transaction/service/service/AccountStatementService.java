@@ -10,8 +10,11 @@ import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.persistence.Query;
 import javax.validation.constraints.NotNull;
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 
 public class AccountStatementService implements AccountStatementRepository {
     @PersistenceContext
@@ -32,10 +35,9 @@ public class AccountStatementService implements AccountStatementRepository {
     public AccountStatement saveConditional(@NotNull AccountStatement accountStatement){
         accountStatement.setBank("BCA");
         HashMap map = CheckIfCurrentDateAlreadyExist(accountStatement.getStartDate(),accountStatement.getEndDate());
-//        LOG.info("\n\n\n Account Statement -> {}",accountStatement);
-//        LOG.info("\n\n\n MAP -> {}",map.get("notExist"));
+        List<BigDecimal> listamount = new ArrayList<>();
+
         if((Boolean) map.get("notExist") == true){
-//            LOG.info("\n\n\n\n Not exist = true");
             entityManager.persist(accountStatement);
             for (AccountStatementDetail detail: accountStatement.getAccountStatementDetailList() ) {
                 detail.setAccountStatement(accountStatement);
@@ -47,24 +49,45 @@ public class AccountStatementService implements AccountStatementRepository {
 
             LOG.info("\n\n\n\n Not exist = false");
             AccountStatement accountStatementInstance = (AccountStatement) map.get("result");
+            List<AccountStatementDetail> accountStatementDetailListOriginal = accountStatementInstance.getAccountStatementDetailList();
 
-            for (AccountStatementDetail detail: accountStatement.getAccountStatementDetailList() ) {
-                Query query = entityManager.createQuery("SELECT a FROM AccountStatementDetail as a WHERE a.accountStatement = :accountStatement AND a.transactionType = :transactionType AND a.transactionDate = :transactionDate AND a.branchCode = :branchCode AND a.amount = :transactionAmount AND a.name = :transactionName AND a.remark = :trailer")
-                        .setParameter("accountStatement",accountStatementInstance)
-                        .setParameter("transactionType",detail.getTransactionType())
-                        .setParameter("transactionDate",detail.getTransactionDate())
-                        .setParameter("branchCode",detail.getBranchCode())
-                        .setParameter("transactionAmount",detail.getAmount())
-                        .setParameter("transactionName",detail.getName())
-                        .setParameter("trailer",detail.getRemark());
-                if(query.getResultList().isEmpty()){
-                    detail.setAccountStatement(accountStatementInstance);
-                    entityManager.persist(detail);
-                }
-                else{
-                    LOG.info("\n\n\nThis Account Statement Detail already exist in DB ::: {}");
-                }
+            for (AccountStatementDetail detail: accountStatement.getAccountStatementDetailList()) {
+                listamount.add(detail.getAmount());
+//                Query query = entityManager.createQuery("SELECT a FROM AccountStatementDetail as a WHERE a.accountStatement = :accountStatement AND a.transactionType = :transactionType AND a.transactionDate = :transactionDate AND a.branchCode = :branchCode AND a.amount = :transactionAmount AND a.name = :transactionName AND a.remark = :trailer")
+//                        .setParameter("accountStatement",accountStatementInstance)
+//                        .setParameter("transactionType",detail.getTransactionType())
+//                        .setParameter("transactionDate",detail.getTransactionDate())
+//                        .setParameter("branchCode",detail.getBranchCode())
+//                        .setParameter("transactionAmount",detail.getAmount())
+//                        .setParameter("transactionName",detail.getName())
+//                        .setParameter("trailer",detail.getRemark());
+//
+//                if(query.getResultList().isEmpty()){
+//                    detail.setAccountStatement(accountStatementInstance);
+//                    entityManager.persist(detail);
+//                }
+//                else{
+//                    LOG.info("\n\n\nThis Account Statement Detail already exist in DB ::: {}");
+//                }
+            }
 
+            Query query = entityManager.createQuery("SELECT a FROM AccountStatementDetail as a WHERE a.accountStatement = :accountStatement AND a.amount in (:transactionAmount)")
+                    .setParameter("accountStatement",accountStatementInstance)
+                    .setParameter("transactionAmount",listamount);
+
+            if(!query.getResultList().isEmpty()){
+                List<AccountStatementDetail> accountStatementDetailList = query.getResultList(); //hasil yang sudah ada
+                accountStatementDetailListOriginal.removeAll(accountStatementDetailList);
+
+                accountStatementDetailListOriginal.forEach(itx->{
+                    itx.setAccountStatement(accountStatementInstance);
+                    entityManager.persist(itx);
+                });
+
+
+            }
+            else{
+                LOG.info("\n\n\nThis Account Statement Detail already exist in DB ::: {}");
             }
 
             return accountStatement;
