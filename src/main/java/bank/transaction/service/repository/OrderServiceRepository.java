@@ -20,6 +20,8 @@ package bank.transaction.service.repository;
 
 import javax.validation.constraints.NotNull;
 import java.math.BigDecimal;
+import java.text.ParseException;
+import java.util.Date;
 import java.util.List;
 
 public interface OrderServiceRepository {
@@ -31,5 +33,5 @@ public interface OrderServiceRepository {
     void checkForReminder();
     void sentNotifMustSentItem();
     String COMPLETE_TRX(@NotNull List<Integer> idList);
-    void updateAccountStatementDetail(int id);
+    Date NewDate() throws ParseException;
 }

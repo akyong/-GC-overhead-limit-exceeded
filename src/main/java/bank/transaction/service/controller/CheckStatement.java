@@ -12,6 +12,7 @@ import bank.transaction.service.repository.Oauth2Operations;
 import bank.transaction.service.repository.OrderServiceRepository;
 import bank.transaction.service.service.AccountStatementService;
 import io.micronaut.http.annotation.Controller;
+import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.http.annotation.Put;
 import org.slf4j.Logger;
@@ -20,6 +21,7 @@ import org.springframework.web.client.RestTemplate;
 
 import javax.validation.constraints.NotNull;
 import java.math.BigDecimal;
+import java.text.ParseException;
 import java.util.*;
 
 @Controller("/cek-statement")
@@ -96,8 +98,14 @@ public class CheckStatement {
         return id;
     }
 
-    @Put("/update")
-    public void updateAccountStatementDetail(int id){
-        orderServiceRepository.updateAccountStatementDetail(id);
+    @Get("/tanggal")
+    public String updateAccountStatementDetail(){
+        Date tanggal = null;
+        try {
+            tanggal = orderServiceRepository.NewDate();
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+        return tanggal.toString();
     }
 }

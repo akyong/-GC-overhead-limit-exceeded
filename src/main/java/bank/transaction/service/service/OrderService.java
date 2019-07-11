@@ -158,7 +158,7 @@ public class OrderService implements OrderServiceRepository {
             preparedStatement.setInt(2,0); //0 => system;
 //            preparedStatement.setTimestamp(3, new java.sql.Timestamp(new Date().getTime()));
             preparedStatement.setObject(3, NewDate());
-            preparedStatement.setInt(3, 1);
+            preparedStatement.setInt(4, 1);
 //            preparedStatement.setInt(5, id);
             preparedStatement.executeUpdate();
         } catch (SQLException e) {
@@ -1464,13 +1464,14 @@ public class OrderService implements OrderServiceRepository {
         return response.toString();
     }
 
+//    @Override
     @Transactional
     public void updateAccountStatementDetail(int id){
         try
-                (
-                        Connection con = dataSource.getConnection();
-                        PreparedStatement preparedStatement = con.prepareStatement("UPDATE tokdis_statements.account_statement_detail SET created_at = ? WHERE id = ?");
-                )
+            (
+                Connection con = dataSource.getConnection();
+                PreparedStatement preparedStatement = con.prepareStatement("UPDATE tokdis_statements.account_statement_detail SET created_at = ? WHERE id = ?");
+            )
         {
             preparedStatement.setObject(1, NewDate());
             preparedStatement.setInt(2, id);
@@ -1493,7 +1494,7 @@ public class OrderService implements OrderServiceRepository {
         SimpleDateFormat dateFormatLocal = new SimpleDateFormat("yyyy-MMM-dd HH:mm:ss");
 
         //Time in GMT
-        LOG.info("Date => {}", dateFormatLocal.parse(dateFormatGmt.format(new Date())));
+//        LOG.info("Date => {}", dateFormatLocal.parse(dateFormatGmt.format(new Date())));
         return dateFormatLocal.parse(dateFormatGmt.format(new Date()));
     }
 

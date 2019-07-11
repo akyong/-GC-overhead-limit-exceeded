@@ -50,7 +50,7 @@ public class Common {
      * STATUS
      * @params dev for development and prod is production
      * */
-    public final String LOG_NOTIF = "dev"; //dev or prod
+    public final String LOG_NOTIF = "prod"; //dev or prod
     public final String CANCELLED = "Canceled";
     public final String test ="saya suka %s";
 
