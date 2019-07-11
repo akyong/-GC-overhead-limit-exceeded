@@ -42,17 +42,17 @@ public class TransactionCheckerJob {
         this.common = common;
     }
 
-    /**
-     * Case No. 1 Reseller ->lebih dari 6 jam batas pembayaran
-     * TODO Auto Check jika pembayaran expired -> if payment_status = 0 and payment_expired_at < now()
-     * then payment_status = 0 and payment_verified_by = 0 and payment_verified_at = now() and is_paid = 0 and is_cancelled = 1
-     * Then update stock
-     *
-     * */
-    @Scheduled(fixedDelay = "10s", initialDelay = "5s")
-    void expiredPaymentChecking(){
-        orderServiceRepository.autoUpdatePaymentStatusIfExpired();
-    }
+//    /**
+//     * Case No. 1 Reseller ->lebih dari 6 jam batas pembayaran
+//     * TODO Auto Check jika pembayaran expired -> if payment_status = 0 and payment_expired_at < now()
+//     * then payment_status = 0 and payment_verified_by = 0 and payment_verified_at = now() and is_paid = 0 and is_cancelled = 1
+//     * Then update stock
+//     *
+//     * */
+//    @Scheduled(fixedDelay = "10s", initialDelay = "5s")
+//    void expiredPaymentChecking(){
+//        orderServiceRepository.autoUpdatePaymentStatusIfExpired();
+//    }
 
     /**
      * Case No. 2 -> Reseller sudah melakukan pembayaran -> Approve akan otomatsi berjalan dan transaksi akan otomatis diteruskan ke supplier
@@ -90,86 +90,86 @@ public class TransactionCheckerJob {
         }
     }
 
-    /**
-     * Case No. 3 Reseller -> Dikirim -> Pesanan kaan otomatis pindah ke transaksi sampai
-     * CronJob berjalan setiap 4 jam sekali
-     * TODO update order supplier -> delivery_status = 1 , order_status = 5 and confirmed_expired_at = now()+2 DAYS and is_delivered = 1 and delivered_at now()
-     * TODO Send NotificationSupplier ONESIGNAL -> Pesanan Sampai -> "Pesananmu INV/20190225/00000005 telah sampai. Silahkan konfirmasi penerimaan pesananmu."
-     * */
-    @Scheduled(fixedDelay = "14400s", initialDelay = "60s")
-    void executeEveryFourtyFive() throws Exception {
-        expeditionRepository.CheckTracking();
-    }
-
-    /**
-     * Case No. 4 Reseller-> "Reseller - Sampai" ->Pesanan akan otomatis pindah ke transaksi selesai
-     * TODO Autocheck if confirmed_expired_at < now() and confirmed_at = null
-     * TODO send ONESIGNAL notification -> Pesanan Selesai -> "Pesananmu INV/20190225/00000005 telah selesai. Silahkan berikan penilaian pesananmu."
-     * then update order_status = 6 and confirmed_at now()
-     * + update saldo ke beranda supplier
-     * */
-    @Scheduled(fixedDelay = "270s", initialDelay = "90s")
-    void executeUpdateTransactionDone(){
-        orderServiceRepository.updateOrderStatusToDone();
-    }
-
-    /**
-     * CASE No. 1 Supplier -> Supplier -> Transaksi - Pesanan BAru jika Supplier tidak merespon pesanan tersebut melebihi 1x24jam
-     * TODO autocheck if supplier_feeback_expired_at < now() and supplier_feedback_at = null and order_status = 1
-     * then update is_rejected = 1 and order_status = 2 and supplier_feedback_at = now()
-     * - balikin stock
-     * - balikin saldo ke brankas
-     * */
-    @Scheduled(fixedDelay = "270s", initialDelay = "120s")
-    void executeUpdateStatusTransactionIfSupplierNotRespond(){
-        orderServiceRepository.updateOrderStatusRejected();
-    }
-
-    /**
-     * Case No.2 -> Supplier-> Pesanan akan otomatis dibatalkan, Supplier tidak meingin pesanan lebih dari 2x24Jam
-     * TODO update order summaries -> is_rejected = 1 and order_status = 2 pesanan ditolak
-     * - Balikin stock
-     * - balikin saldo reseller brankas
-     * */
-    @Scheduled(fixedDelay = "270s", initialDelay = "150s")
-    void executeUpdateStatusTransactionIfSupplierNotSentTheOrder(){
-        orderServiceRepository.UpdateIsRejectedIfSupplierNotSentTheOrder();
-    }
-
 //    /**
-//     * Case No.3 ->Transaksi Sampai
-//     * order status = 6
-//     * confirm_at today
-//     * ini sama dengan case reseller yang nomor 4
-//     * TODO update order supplier to orderStatus = 6 and confirmed_at = now() if confirmed_at = null and confirmed_expired_at < now()
-//     */
-//    @Scheduled(fixedDelay = "270s", initialDelay = "180s")
-//    void executeUpdateStatusToDoneifConfirmedExpiredMoreThanToday(){
-//        LOG.info("------- Case at: executeUpdateStatusToDoneifConfirmedExpiredMoreThanToday");
-//        LOG.info("------------------------------ EXECUTE AT :{}", new SimpleDateFormat("dd/M/yyyy hh:mm:ss").format(new Date()));
-//        orderService.UpdateIsRejectedIfSupplierNotSentTheOrder();
-//        LOG.info("------------------------------ END AT :{}", new SimpleDateFormat("dd/M/yyyy hh:mm:ss").format(new Date()));
-//        LOG.info("\n-------------------------------------------------------------------------------");
+//     * Case No. 3 Reseller -> Dikirim -> Pesanan kaan otomatis pindah ke transaksi sampai
+//     * CronJob berjalan setiap 4 jam sekali
+//     * TODO update order supplier -> delivery_status = 1 , order_status = 5 and confirmed_expired_at = now()+2 DAYS and is_delivered = 1 and delivered_at now()
+//     * TODO Send NotificationSupplier ONESIGNAL -> Pesanan Sampai -> "Pesananmu INV/20190225/00000005 telah sampai. Silahkan konfirmasi penerimaan pesananmu."
+//     * */
+//    @Scheduled(fixedDelay = "14400s", initialDelay = "60s")
+//    void executeEveryFourtyFive() throws Exception {
+//        expeditionRepository.CheckTracking();
 //    }
-
-    /**
-     * Case Reminder
-     * TODO Notifikasi Pesanan Menunggu Pembayaran
-     * TODO Send NotificationSupplier ONESIGNAL -> "Segera lakukan pembayaran sebesar Rp 1.234.000 untuk pesananmu TDO/20190225/0000160 sebelum 06-02-2019 22.32 untuk menghindari pembatalan."
-     * */
-    @Scheduled(fixedDelay = "270s", initialDelay = "180s")
-    void executeForReminder(){
-        orderServiceRepository.checkForReminder();
-    }
-
-    /**
-     * TODO Case Supplier - ONESIGNAL
-     * TODO "notifikasi segera kirim barang, input no. Resi"
-     * */
-    @Scheduled(fixedDelay = "270s", initialDelay = "210s")
-    void executeNotificationMustSendItem(){
-        orderServiceRepository.sentNotifMustSentItem();
-    }
+//
+//    /**
+//     * Case No. 4 Reseller-> "Reseller - Sampai" ->Pesanan akan otomatis pindah ke transaksi selesai
+//     * TODO Autocheck if confirmed_expired_at < now() and confirmed_at = null
+//     * TODO send ONESIGNAL notification -> Pesanan Selesai -> "Pesananmu INV/20190225/00000005 telah selesai. Silahkan berikan penilaian pesananmu."
+//     * then update order_status = 6 and confirmed_at now()
+//     * + update saldo ke beranda supplier
+//     * */
+//    @Scheduled(fixedDelay = "270s", initialDelay = "90s")
+//    void executeUpdateTransactionDone(){
+//        orderServiceRepository.updateOrderStatusToDone();
+//    }
+//
+//    /**
+//     * CASE No. 1 Supplier -> Supplier -> Transaksi - Pesanan BAru jika Supplier tidak merespon pesanan tersebut melebihi 1x24jam
+//     * TODO autocheck if supplier_feeback_expired_at < now() and supplier_feedback_at = null and order_status = 1
+//     * then update is_rejected = 1 and order_status = 2 and supplier_feedback_at = now()
+//     * - balikin stock
+//     * - balikin saldo ke brankas
+//     * */
+//    @Scheduled(fixedDelay = "270s", initialDelay = "120s")
+//    void executeUpdateStatusTransactionIfSupplierNotRespond(){
+//        orderServiceRepository.updateOrderStatusRejected();
+//    }
+//
+//    /**
+//     * Case No.2 -> Supplier-> Pesanan akan otomatis dibatalkan, Supplier tidak meingin pesanan lebih dari 2x24Jam
+//     * TODO update order summaries -> is_rejected = 1 and order_status = 2 pesanan ditolak
+//     * - Balikin stock
+//     * - balikin saldo reseller brankas
+//     * */
+//    @Scheduled(fixedDelay = "270s", initialDelay = "150s")
+//    void executeUpdateStatusTransactionIfSupplierNotSentTheOrder(){
+//        orderServiceRepository.UpdateIsRejectedIfSupplierNotSentTheOrder();
+//    }
+//
+////    /**
+////     * Case No.3 ->Transaksi Sampai
+////     * order status = 6
+////     * confirm_at today
+////     * ini sama dengan case reseller yang nomor 4
+////     * TODO update order supplier to orderStatus = 6 and confirmed_at = now() if confirmed_at = null and confirmed_expired_at < now()
+////     */
+////    @Scheduled(fixedDelay = "270s", initialDelay = "180s")
+////    void executeUpdateStatusToDoneifConfirmedExpiredMoreThanToday(){
+////        LOG.info("------- Case at: executeUpdateStatusToDoneifConfirmedExpiredMoreThanToday");
+////        LOG.info("------------------------------ EXECUTE AT :{}", new SimpleDateFormat("dd/M/yyyy hh:mm:ss").format(new Date()));
+////        orderService.UpdateIsRejectedIfSupplierNotSentTheOrder();
+////        LOG.info("------------------------------ END AT :{}", new SimpleDateFormat("dd/M/yyyy hh:mm:ss").format(new Date()));
+////        LOG.info("\n-------------------------------------------------------------------------------");
+////    }
+//
+//    /**
+//     * Case Reminder
+//     * TODO Notifikasi Pesanan Menunggu Pembayaran
+//     * TODO Send NotificationSupplier ONESIGNAL -> "Segera lakukan pembayaran sebesar Rp 1.234.000 untuk pesananmu TDO/20190225/0000160 sebelum 06-02-2019 22.32 untuk menghindari pembatalan."
+//     * */
+//    @Scheduled(fixedDelay = "270s", initialDelay = "180s")
+//    void executeForReminder(){
+//        orderServiceRepository.checkForReminder();
+//    }
+//
+//    /**
+//     * TODO Case Supplier - ONESIGNAL
+//     * TODO "notifikasi segera kirim barang, input no. Resi"
+//     * */
+//    @Scheduled(fixedDelay = "270s", initialDelay = "210s")
+//    void executeNotificationMustSendItem(){
+//        orderServiceRepository.sentNotifMustSentItem();
+//    }
 
     protected RestTemplate getRestTemplate() {
         RestTemplate restTemplate = new RestTemplate();

@@ -31,4 +31,5 @@ public interface OrderServiceRepository {
     void checkForReminder();
     void sentNotifMustSentItem();
     String COMPLETE_TRX(@NotNull List<Integer> idList);
+    void updateAccountStatementDetail(int id);
 }

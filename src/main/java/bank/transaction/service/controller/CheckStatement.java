@@ -13,6 +13,7 @@ import bank.transaction.service.repository.OrderServiceRepository;
 import bank.transaction.service.service.AccountStatementService;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Post;
+import io.micronaut.http.annotation.Put;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.client.RestTemplate;
@@ -95,5 +96,8 @@ public class CheckStatement {
         return id;
     }
 
-
+    @Put("/update")
+    public void updateAccountStatementDetail(int id){
+        orderServiceRepository.updateAccountStatementDetail(id);
+    }
 }
