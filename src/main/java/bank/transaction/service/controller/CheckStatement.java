@@ -52,19 +52,38 @@ public class CheckStatement {
 //        Date endDate = toDate(year, month, day);
 
         /** THIS IS IMPORTANT */
-        BusinessBankingTemplate businessBankingTemplate = new BusinessBankingTemplate(getRestTemplate());
-        try {
-            ac = accountStatementService.saveConditional(businessBankingTemplate.getStatement(common.BCA_CORPORATE_ID,common.BCA_ACCOUNT_NUMBER, fromDate, endDate));
-            LOG.info("RESULT -- : {}",ac.toString());
-            for (AccountStatementDetail acd: ac.getAccountStatementDetailList()) {
-               listAmount.add(acd.getAmount());
-            }
+//        BusinessBankingTemplate businessBankingTemplate = new BusinessBankingTemplate(getRestTemplate());
+//        try {
+//            ac = accountStatementService.saveConditional(businessBankingTemplate.getStatement(common.BCA_CORPORATE_ID,common.BCA_ACCOUNT_NUMBER, fromDate, endDate));
+//            LOG.info("RESULT -- : {}",ac.toString());
+//            for (AccountStatementDetail acd: ac.getAccountStatementDetailList()) {
+//               listAmount.add(acd.getAmount());
+//            }
+//
+//            orderServiceRepository.CheckToTokdis(listAmount);
+//        }
+//        catch (Exception ex){
+//            LOG.error("----------- NO TRANSACTION!!!!");
+//        }
 
+        try {
+            RestTemplate rest = getRestTemplate();
+            LOG.info("---- REST:  {}",rest);
+            BusinessBankingTemplate businessBankingTemplate = new BusinessBankingTemplate(rest);
+            LOG.info("---- REST:  {}",businessBankingTemplate.getStatement(common.BCA_CORPORATE_ID,common.BCA_ACCOUNT_NUMBER, fromDate, endDate));
+            ac = accountStatementService.saveConditional(businessBankingTemplate.getStatement(common.BCA_CORPORATE_ID,common.BCA_ACCOUNT_NUMBER, fromDate, endDate));
+            for (AccountStatementDetail acd: ac.getAccountStatementDetailList()) {
+                listAmount.add(acd.getAmount());
+            }
             orderServiceRepository.CheckToTokdis(listAmount);
         }
         catch (Exception ex){
+            LOG.error("----------- LOG HIT BCA :  {}",ex);
+            ex.printStackTrace();
             LOG.error("----------- NO TRANSACTION!!!!");
         }
+
+
 
         return ac.getAccountStatementDetailList().toString();
     }

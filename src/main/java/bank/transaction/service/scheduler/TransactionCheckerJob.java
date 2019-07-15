@@ -30,6 +30,19 @@ public class TransactionCheckerJob {
     private BusinessBankingTemplate businessBankingTemplate;
     private RestTemplate restTemplate;
 
+    List<BigDecimal> listAmount = new ArrayList<>();
+    Calendar now = Calendar.getInstance();
+    int year = now.get(Calendar.YEAR);
+    int month = now.get(Calendar.MONTH) + 1; // Note: zero based!
+    int day = now.get(Calendar.DAY_OF_MONTH);
+
+//        Date fromDate = toDate(2016, 9,1);
+//        Date endDate = toDate(2016, 9, 1);
+
+    Date fromDate = toDate(year, month,day);
+    Date endDate = toDate(year, month, day);
+    AccountStatement ac = null;
+
     public TransactionCheckerJob(Common common, BNIBankingTemplate bniBankingTemplate,ExpeditionRepository expeditionRepository, OrderServiceRepository orderServiceRepository, BcaService bcaService, Oauth2Template oauth2Template, Oauth2OperationsBNI oauth2OperationsBNI, RestTemplate restTemplate, AccountStatementRepository accountStatementRepository){
         this.bcaService = bcaService;
         this.oauth2Template = oauth2Template;
@@ -62,30 +75,26 @@ public class TransactionCheckerJob {
      * */
     @Scheduled(fixedDelay = "270s", initialDelay = "35s")
     void executeEveryTen() throws Exception {
-        List<BigDecimal> listAmount = new ArrayList<>();
-        Calendar now = Calendar.getInstance();
-        int year = now.get(Calendar.YEAR);
-        int month = now.get(Calendar.MONTH) + 1; // Note: zero based!
-        int day = now.get(Calendar.DAY_OF_MONTH);
+        LOG.info("Year : {}",year);
+        LOG.info("month : {}",month);
+        LOG.info("day : {}",day);
+        LOG.info("From Date = {}",fromDate);
+        LOG.info("From endDate = {}",endDate);
 
-//        Date fromDate = toDate(2016, 9,1);
-//        Date endDate = toDate(2016, 9, 1);
-
-        Date fromDate = toDate(year, month,day);
-        Date endDate = toDate(year, month, day);
-
-//        AccessGrant testGetTokenBNI = oauth2OperationsBNI.getToken("d78e500c-76c1-49e8-a4d8-41c5154b150e","ad0882f2-b9b4-46c2-beca-ff2946e4e1aa");
         /** THIS IS IMPORTANT */
-        BusinessBankingTemplate businessBankingTemplate = new BusinessBankingTemplate(getRestTemplate());
-        try {
-            AccountStatement ac = accountStatementRepository.saveConditional(businessBankingTemplate.getStatement(common.BCA_CORPORATE_ID,common.BCA_ACCOUNT_NUMBER, fromDate, endDate));
 
+        try {
+            businessBankingTemplate = new BusinessBankingTemplate(getRestTemplate());
+            LOG.info("---- REST:  {}",businessBankingTemplate.getStatement(common.BCA_CORPORATE_ID,common.BCA_ACCOUNT_NUMBER, fromDate, endDate));
+            ac = accountStatementRepository.saveConditional(businessBankingTemplate.getStatement(common.BCA_CORPORATE_ID,common.BCA_ACCOUNT_NUMBER, fromDate, endDate));
             for (AccountStatementDetail acd: ac.getAccountStatementDetailList()) {
                 listAmount.add(acd.getAmount());
             }
             orderServiceRepository.CheckToTokdis(listAmount);
         }
         catch (Exception ex){
+            LOG.error("----------- LOG HIT BCA :  {}",ex);
+            ex.printStackTrace();
             LOG.error("----------- NO TRANSACTION!!!!");
         }
     }
@@ -159,6 +168,8 @@ public class TransactionCheckerJob {
         RestTemplate restTemplate = new RestTemplate();
         Oauth2Operations oauth2Operations = new Oauth2Template();
         AccessGrant accessGrant = oauth2Operations.getToken(common.BCA_CLIENT_ID, common.BCA_CLIENT_SECRET);
+        BCATransactionInterceptor bca = new BCATransactionInterceptor(accessGrant.getAccessToken(), common.BCA_API_KEY, common.BCA_API_SECRET);
+
         restTemplate.setInterceptors(Collections.singletonList(new BCATransactionInterceptor(accessGrant.getAccessToken(), common.BCA_API_KEY, common.BCA_API_SECRET)));
         restTemplate.setErrorHandler(new BCAErrorHandler());
         return restTemplate;

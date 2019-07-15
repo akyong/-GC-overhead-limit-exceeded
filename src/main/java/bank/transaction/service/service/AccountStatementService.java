@@ -33,6 +33,8 @@ public class AccountStatementService implements AccountStatementRepository {
     @Override
     @Transactional
     public AccountStatement saveConditional(@NotNull AccountStatement accountStatement){
+
+        LOG.info(" ---- Account Statement = "+accountStatement);
         accountStatement.setBank("BCA");
         HashMap map = CheckIfCurrentDateAlreadyExist(accountStatement.getStartDate(),accountStatement.getEndDate());
         List<BigDecimal> listamount = new ArrayList<>();
@@ -49,7 +51,8 @@ public class AccountStatementService implements AccountStatementRepository {
 
             LOG.info("\n\n\n\n Not exist = false");
             AccountStatement accountStatementInstance = (AccountStatement) map.get("result");
-            List<AccountStatementDetail> accountStatementDetailListOriginal = accountStatementInstance.getAccountStatementDetailList();
+//            LOG.info("\naccountStatementInstance \n\n {}",accountStatementInstance.toString());
+//            LOG.info("\naccountStatementInstance \n\n {}",accountStatementInstance.getAccountStatementDetailList());
 
             for (AccountStatementDetail detail: accountStatement.getAccountStatementDetailList()) {
                 listamount.add(detail.getAmount());
@@ -75,19 +78,47 @@ public class AccountStatementService implements AccountStatementRepository {
                     .setParameter("accountStatement",accountStatementInstance)
                     .setParameter("transactionAmount",listamount);
 
-            if(!query.getResultList().isEmpty()){
-                List<AccountStatementDetail> accountStatementDetailList = query.getResultList(); //hasil yang sudah ada
-                accountStatementDetailListOriginal.removeAll(accountStatementDetailList);
+            try{
+                List<AccountStatementDetail> accountStatementDetailListOriginal = accountStatementInstance.getAccountStatementDetailList();
+                if(!query.getResultList().isEmpty()){
+                    List<AccountStatementDetail> accountStatementDetailList = query.getResultList(); //hasil yang sudah ada
+                    accountStatementDetailListOriginal.removeAll(accountStatementDetailList);
 
-                accountStatementDetailListOriginal.forEach(itx->{
-                    itx.setAccountStatement(accountStatementInstance);
-                    entityManager.persist(itx);
-                });
+                    accountStatementDetailListOriginal.forEach(itx->{
+                        itx.setAccountStatement(accountStatementInstance);
+                        entityManager.persist(itx);
+                    });
 
+
+                }
+                else{
+                    LOG.info("\n\n\nThis Account Statement Detail already exist in DB ::: {}");
+                }
 
             }
-            else{
-                LOG.info("\n\n\nThis Account Statement Detail already exist in DB ::: {}");
+            catch (Exception ex){
+
+                if(!query.getResultList().isEmpty()){
+                    List<AccountStatementDetail> accountStatementDetailList = query.getResultList(); //hasil yang sudah ada
+//                    accountStatementDetailListOriginal.removeAll(accountStatementDetailList);
+
+                    for (AccountStatementDetail detail: accountStatement.getAccountStatementDetailList()) {
+                        listamount.add(detail.getAmount());
+
+                        try{
+                            detail.setAccountStatement(accountStatementInstance);
+                            entityManager.persist(detail);
+                        }
+                        catch (Exception exp)
+                        {
+                            LOG.info("ERROR : {}",exp);
+                        }
+                    }
+
+                }
+                else{
+                    LOG.info("\n\n\nThis Account Statement Detail already exist in DB ::: {}");
+                }
             }
 
             return accountStatement;

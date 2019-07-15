@@ -1,8 +1,11 @@
 package bank.transaction.service.impl;
 
+import bank.transaction.service.scheduler.TransactionCheckerJob;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.codec.digest.HmacUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpRequest;
 import org.springframework.http.MediaType;
@@ -15,6 +18,7 @@ import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Enumeration;
 
 /**
  * BCA Transaction Interceptor
@@ -34,6 +38,8 @@ public class BCATransactionInterceptor implements ClientHttpRequestInterceptor {
 
     private String apiSecret;
 
+    private static final Logger LOG = LoggerFactory.getLogger(BCATransactionInterceptor.class);
+
     public BCATransactionInterceptor(String accessToken, String apiKey, String apiSecret) {
         this.accessToken = accessToken;
         this.apiKey = apiKey;
@@ -42,7 +48,6 @@ public class BCATransactionInterceptor implements ClientHttpRequestInterceptor {
 
     @Override
     public ClientHttpResponse intercept(final HttpRequest httpRequest, byte[] body, ClientHttpRequestExecution clientHttpRequestExecution) throws IOException {
-
         String timestamp = getTimestamp();
         HttpHeaders httpHeaders = httpRequest.getHeaders();
         httpHeaders.set("Authorization", "Bearer " + accessToken);
@@ -52,6 +57,8 @@ public class BCATransactionInterceptor implements ClientHttpRequestInterceptor {
 
         httpHeaders.setContentType(MediaType.APPLICATION_JSON);
         httpHeaders.remove("Accept-Charset");
+
+//        LOG.info("BCA {}",  clientHttpRequestExecution.execute(httpRequest, body).
 
         return clientHttpRequestExecution.execute(httpRequest, body);
     }

@@ -62,10 +62,11 @@ public class ExpeditionService implements ExpeditionRepository {
     @Transactional
     public void CheckTracking() throws Exception {
         List<HashMap<String,String>> hashMapList =  getListOfAwbNumber();
-        String url = "";
+        String trimResi,url ;
+
         for (HashMap<String,String> list: hashMapList) {
 
-            String trimResi = list.get("awbNumber").replace(" ","").replace(" ","");
+            trimResi = list.get("awbNumber").replace(" ","").replace(" ","");
             url = HOST_NAME+PATH_TRACK+list.get("kurir")+"/"+trimResi;
             LOG.info("URL => {}, END with comma", url);
             URL obj = new URL(url);
@@ -113,13 +114,6 @@ public class ExpeditionService implements ExpeditionRepository {
                     e.printStackTrace();
                 }
             }
-
-//            try {
-//            }
-//            catch (Exception e){
-//                e.printStackTrace();
-//            }
-
         }
     }
 

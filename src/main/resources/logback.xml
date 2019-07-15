@@ -11,7 +11,7 @@
     <root level="info">
         <appender-ref ref="STDOUT" />
     </root>
-
-    <logger name="bank.transaction.service" level="info" />
+    <!--<logger name="io.micronaut.context.condition" level="DEBUG"/>-->
+    <logger name="bank.transaction.service" level="DEBUG" />
 
 </configuration>

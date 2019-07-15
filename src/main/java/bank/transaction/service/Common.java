@@ -52,7 +52,6 @@ public class Common {
      * */
     public final String LOG_NOTIF = "prod"; //dev or prod
     public final String CANCELLED = "Canceled";
-    public final String test ="saya suka %s";
 
     /*
     * MESSAGE

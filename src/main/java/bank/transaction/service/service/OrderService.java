@@ -621,10 +621,10 @@ public class OrderService implements OrderServiceRepository {
     public void updateOrderStatusRejected(){
         UpdateQuantityOfItemWhenRejectOrder();
         try
-                (
-                    Connection con = dataSource.getConnection();
-                    PreparedStatement preparedStatement = con.prepareStatement("update order_suppliers set is_rejected = 1 , order_status = 2, supplier_feedback_at = ? , is_rejected_by_system = 1, rejected_at = ? , reason_rejected = 'SYSTEM_REJECTED_REASON_1' where supplier_feedback_expired_at <= ? AND supplier_feedback_at is null AND order_status = 1 ");
-                )
+            (
+                Connection con = dataSource.getConnection();
+                PreparedStatement preparedStatement = con.prepareStatement("update order_suppliers set is_rejected = 1 , order_status = 2, supplier_feedback_at = ? , is_rejected_by_system = 1, rejected_at = ? , reason_rejected = 'SYSTEM_REJECTED_REASON_1' where supplier_feedback_expired_at <= ? AND supplier_feedback_at is null AND order_status = 1 ");
+            )
         {
             preparedStatement.setObject(1, NewDate());
             preparedStatement.setObject(2, NewDate());
