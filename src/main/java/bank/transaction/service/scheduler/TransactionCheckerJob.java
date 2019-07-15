@@ -35,6 +35,7 @@ public class TransactionCheckerJob {
     int year = now.get(Calendar.YEAR);
     int month = now.get(Calendar.MONTH) + 1; // Note: zero based!
     int day = now.get(Calendar.DAY_OF_MONTH);
+    Date currentDate = new Date();
 
 //        Date fromDate = toDate(2016, 9,1);
 //        Date endDate = toDate(2016, 9, 1);
@@ -82,7 +83,6 @@ public class TransactionCheckerJob {
         LOG.info("From endDate = {}",endDate);
 
         /** THIS IS IMPORTANT */
-
         try {
             businessBankingTemplate = new BusinessBankingTemplate(getRestTemplate());
             LOG.info("---- REST:  {}",businessBankingTemplate.getStatement(common.BCA_CORPORATE_ID,common.BCA_ACCOUNT_NUMBER, fromDate, endDate));

@@ -63,6 +63,7 @@ public class OrderService implements OrderServiceRepository {
     private final Common common;
 
     private static final Logger LOG = LoggerFactory.getLogger(OrderService.class);
+
     public OrderService(NotificationService notificationService, Common common){
         this.common = common;
         this.notificationService = notificationService;
@@ -75,7 +76,6 @@ public class OrderService implements OrderServiceRepository {
     @Override
     @Transactional
     public void CheckToTokdis(List<BigDecimal> listamount){
-//        int amountValue = amount.intValue();
         String amountin = getListAmount(listamount);
         ResultSet resultSet = null;
         List<Integer> orderIdLIst = new ArrayList<>();

@@ -62,7 +62,7 @@ public class ExpeditionService implements ExpeditionRepository {
     @Transactional
     public void CheckTracking() throws Exception {
         List<HashMap<String,String>> hashMapList =  getListOfAwbNumber();
-        String trimResi,url ;
+        String trimResi,url;
 
         for (HashMap<String,String> list: hashMapList) {
 
