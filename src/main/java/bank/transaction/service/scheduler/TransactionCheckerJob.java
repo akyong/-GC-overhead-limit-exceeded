@@ -85,7 +85,6 @@ public class TransactionCheckerJob {
         /** THIS IS IMPORTANT */
         try {
             businessBankingTemplate = new BusinessBankingTemplate(getRestTemplate());
-            LOG.info("---- REST:  {}",businessBankingTemplate.getStatement(common.BCA_CORPORATE_ID,common.BCA_ACCOUNT_NUMBER, fromDate, endDate));
             ac = accountStatementRepository.saveConditional(businessBankingTemplate.getStatement(common.BCA_CORPORATE_ID,common.BCA_ACCOUNT_NUMBER, fromDate, endDate));
             for (AccountStatementDetail acd: ac.getAccountStatementDetailList()) {
                 listAmount.add(acd.getAmount());
