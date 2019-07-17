@@ -1,0 +1,111 @@
+micronaut:
+    application:
+        name: bank-transaction-service
+    server:
+        port: 8080
+#        port: 8081 dev
+#        prot: 8080 prod
+
+
+datasources:
+    default:
+        url: ${JDBC_URL:`jdbc:mysql://tokodistributor.cnnviypzj8mf.ap-southeast-1.rds.amazonaws.com:3306/tokdis_statements?autoReconnect=true&useUnicode=true&characterEncoding=UTF-8&useSSL=false&failOverReadOnly=false&maxReconnects=50`}
+        username: ${JDBC_USER:api_tokdis_payment}
+        password: ${JDBC_PASSWORD:%Ap1TDpAym3,%}
+        driverClassName: ${JDBC_DRIVER:com.mysql.jdbc.Driver}
+        maximum-pool-size: 20
+    tokdis:
+        url: ${JDBC_URL:`jdbc:mysql://tokodistributor.cnnviypzj8mf.ap-southeast-1.rds.amazonaws.com:3306/tokdis_trx?autoReconnect=true&useUnicode=true&characterEncoding=UTF-8&useSSL=false&failOverReadOnly=false&maxReconnects=50`}
+        username: ${JDBC_USER:api_tokdis_payment}
+        password: ${JDBC_PASSWORD:%Ap1TDpAym3,%}
+        driverClassName: ${JDBC_DRIVER:com.mysql.jdbc.Driver}
+        maximum-pool-size: 20
+    maintokdis:
+        url: ${JDBC_URL:`jdbc:mysql://tokodistributor.cnnviypzj8mf.ap-southeast-1.rds.amazonaws.com:3306/tokdis?autoReconnect=true&useUnicode=true&characterEncoding=UTF-8&useSSL=false&failOverReadOnly=false&maxReconnects=50`}
+        username: ${JDBC_USER:api_tokdis}
+        password: ${JDBC_PASSWORD:%Ap1TDr3AD.T%}
+        driverClassName: ${JDBC_DRIVER:com.mysql.jdbc.Driver}
+        maximum-pool-size: 20
+
+#datasources:
+#    default:
+#        url: ${JDBC_URL:`jdbc:mysql://tokdis-development.cnnviypzj8mf.ap-southeast-1.rds.amazonaws.com:3306/tokdis_statements?autoReconnect=true&useUnicode=true&characterEncoding=UTF-8&useSSL=false&failOverReadOnly=false&maxReconnects=10`}
+#        username: ${JDBC_USER:api_tokdis_payment}
+#        password: ${JDBC_PASSWORD:%Ap1TDpAym3,%}
+#        driverClassName: ${JDBC_DRIVER:com.mysql.jdbc.Driver}
+#        maximum-pool-size: 2
+#    tokdis:
+#        url: ${JDBC_URL:`jdbc:mysql://tokdis-development.cnnviypzj8mf.ap-southeast-1.rds.amazonaws.com:3306/tokdis_trx?autoReconnect=true&useUnicode=true&characterEncoding=UTF-8&useSSL=false&failOverReadOnly=false&maxReconnects=10`}
+#        username: ${JDBC_USER:api_tokdis_payment}
+#        password: ${JDBC_PASSWORD:%Ap1TDpAym3,%}
+#        driverClassName: ${JDBC_DRIVER:com.mysql.jdbc.Driver}
+#        maximum-pool-size: 2
+#    maintokdis:
+#        url: ${JDBC_URL:`jdbc:mysql://tokdis-development.cnnviypzj8mf.ap-southeast-1.rds.amazonaws.com:3306/tokdis?autoReconnect=true&useUnicode=true&characterEncoding=UTF-8&useSSL=false&failOverReadOnly=false&maxReconnects=10`}
+#        username: ${JDBC_USER:api_tokdis}
+#        password: ${JDBC_PASSWORD:%Ap1TDr3AD.T%}
+#        driverClassName: ${JDBC_DRIVER:com.mysql.jdbc.Driver}
+#        maximum-pool-size: 2
+
+#    tokdis:
+#        url: ${JDBC_URL:`jdbc:mysql://tokodistributor.cnnviypzj8mf.ap-southeast-1.rds.amazonaws.com:3306/tokdis_trx?autoReconnect=true&useUnicode=true&characterEncoding=UTF-8&useSSL=false`}
+#        username: ${JDBC_USER:api_tokdis_payment}
+#        password: ${JDBC_PASSWORD:%Ap1TDpAym3,%}
+#        driverClassName: ${JDBC_DRIVER:com.mysql.jdbc.Driver}
+#    maintokdis:
+#        url: ${JDBC_URL:`jdbc:mysql://tokodistributor.cnnviypzj8mf.ap-southeast-1.rds.amazonaws.com:3306/tokdis?autoReconnect=true&useUnicode=true&characterEncoding=UTF-8&useSSL=false`}
+#        username: ${JDBC_USER:api_tokdis}
+#        password: ${JDBC_PASSWORD:%Ap1TDr3AD.T%}
+#        driverClassName: ${JDBC_DRIVER:com.mysql.jdbc.Driver}
+
+#datasources:
+#    default:
+#        url: ${JDBC_URL:`jdbc:mysql://localhost:3306/bankStatement?autoReconnect=true&useUnicode=true&characterEncoding=UTF-8&useSSL=false`}
+#        username: ${JDBC_USER:root}
+#        password: ${JDBC_PASSWORD:semut123}
+#        driverClassName: ${JDBC_DRIVER:com.mysql.jdbc.Driver}
+#    tokdis:
+#        url: ${JDBC_URL:`jdbc:mysql://tokodistributor.cnnviypzj8mf.ap-southeast-1.rds.amazonaws.com:3306/tokdis_trx?autoReconnect=true&useUnicode=true&characterEncoding=UTF-8&useSSL=false`}
+#        username: ${JDBC_USER:api_tokdis_payment}
+#        password: ${JDBC_PASSWORD:%Ap1TDpAym3,%}
+#        driverClassName: ${JDBC_DRIVER:com.mysql.jdbc.Driver}
+#    maintokdis:
+#        url: ${JDBC_URL:`jdbc:mysql://tokodistributor.cnnviypzj8mf.ap-southeast-1.rds.amazonaws.com:3306/tokdis?autoReconnect=true&useUnicode=true&characterEncoding=UTF-8&useSSL=false`}
+#        username: ${JDBC_USER:api_tokdis}
+#        password: ${JDBC_PASSWORD:%Ap1TDr3AD.T%}
+#        driverClassName: ${JDBC_DRIVER:com.mysql.jdbc.Driver}
+
+
+
+
+#tag::jpa[] //untuk cek di folder bank.transaction.service.domainjpa jika ada setiap perubahan maka ada pembaruan table di database.
+jpa:
+    default:
+        packages-to-scan:
+            - 'bank.transaction.service.domain'
+        properties:
+            hibernate:
+                dialect: org.hibernate.dialect.MySQL5InnoDBDialect
+                hbm2ddl:
+                    auto: update
+                show_sql: true
+    tokdis:
+        packages-to-scan:
+            - 'bank.transaction.service.tokdis'
+        properties:
+            hibernate:
+                dialect: org.hibernate.dialect.MySQL5Dialect
+                hbm2ddl:
+                    auto: none
+                show_sql: true
+    maintokdis:
+        packages-to-scan:
+            - 'bank.transaction.service.tokdis'
+        properties:
+            hibernate:
+                dialect: org.hibernate.dialect.MySQL5Dialect
+                hbm2ddl:
+                    auto: none
+                show_sql: true
+
+#end::jpa[]

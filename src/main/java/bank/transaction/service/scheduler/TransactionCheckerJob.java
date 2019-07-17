@@ -13,6 +13,9 @@ import bank.transaction.service.domain.AccessGrant;
 import bank.transaction.service.domain.AccountStatement;
 import bank.transaction.service.domain.AccountStatementDetail;
 import bank.transaction.service.service.BcaService;
+import org.springframework.http.client.BufferingClientHttpRequestFactory;
+import org.springframework.http.client.ClientHttpRequestFactory;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 
 @Singleton
@@ -30,19 +33,7 @@ public class TransactionCheckerJob {
     private BusinessBankingTemplate businessBankingTemplate;
     private RestTemplate restTemplate;
 
-    List<BigDecimal> listAmount = new ArrayList<>();
-    Calendar now = Calendar.getInstance();
-    int year = now.get(Calendar.YEAR);
-    int month = now.get(Calendar.MONTH) + 1; // Note: zero based!
-    int day = now.get(Calendar.DAY_OF_MONTH);
-    Date currentDate = new Date();
 
-//        Date fromDate = toDate(2016, 9,1);
-//        Date endDate = toDate(2016, 9, 1);
-
-    Date fromDate = toDate(year, month,day);
-    Date endDate = toDate(year, month, day);
-    AccountStatement ac = null;
 
     public TransactionCheckerJob(Common common, BNIBankingTemplate bniBankingTemplate,ExpeditionRepository expeditionRepository, OrderServiceRepository orderServiceRepository, BcaService bcaService, Oauth2Template oauth2Template, Oauth2OperationsBNI oauth2OperationsBNI, RestTemplate restTemplate, AccountStatementRepository accountStatementRepository){
         this.bcaService = bcaService;
@@ -76,6 +67,20 @@ public class TransactionCheckerJob {
      * */
     @Scheduled(fixedDelay = "270s", initialDelay = "35s")
     void executeEveryTen() throws Exception {
+
+        List<BigDecimal> listAmount = new ArrayList<>();
+        Calendar now = Calendar.getInstance();
+        int year = now.get(Calendar.YEAR);
+        int month = now.get(Calendar.MONTH) + 1; // Note: zero based!
+        int day = now.get(Calendar.DAY_OF_MONTH);
+
+//        Date fromDate = toDate(2016, 9,1);
+//        Date endDate = toDate(2016, 9, 1);
+
+        Date fromDate = toDate(year, month,day);
+        Date endDate = toDate(year, month, day);
+        AccountStatement ac = null;
+
         LOG.info("Year : {}",year);
         LOG.info("month : {}",month);
         LOG.info("day : {}",day);
@@ -134,7 +139,7 @@ public class TransactionCheckerJob {
     }
 
     /**
-     * Case No.2 -> Supplier-> Pesanan akan otomatis dibatalkan, Supplier tidak meingin pesanan lebih dari 2x24Jam
+     * Case NocheckForReminder.2 -> Supplier-> Pesanan akan otomatis dibatalkan, Supplier tidak meingin pesanan lebih dari 2x24Jam
      * TODO update order summaries -> is_rejected = 1 and order_status = 2 pesanan ditolak
      * - Balikin stock
      * - balikin saldo reseller brankas
@@ -144,15 +149,15 @@ public class TransactionCheckerJob {
         orderServiceRepository.UpdateIsRejectedIfSupplierNotSentTheOrder();
     }
 
-    /**
-     * Case Reminder
-     * TODO Notifikasi Pesanan Menunggu Pembayaran
-     * TODO Send NotificationSupplier ONESIGNAL -> "Segera lakukan pembayaran sebesar Rp 1.234.000 untuk pesananmu TDO/20190225/0000160 sebelum 06-02-2019 22.32 untuk menghindari pembatalan."
-     * */
-    @Scheduled(fixedDelay = "270s", initialDelay = "180s")
-    void executeForReminder(){
-        orderServiceRepository.checkForReminder();
-    }
+//    /**
+//     * Case Reminder
+//     * TODO Notifikasi Pesanan Menunggu Pembayaran
+//     * TODO Send NotificationSupplier ONESIGNAL -> "Segera lakukan pembayaran sebesar Rp 1.234.000 untuk pesananmu TDO/20190225/0000160 sebelum 06-02-2019 22.32 untuk menghindari pembatalan."
+//     * */
+//    @Scheduled(fixedDelay = "270s", initialDelay = "180s")
+//    void executeForReminder(){
+//        orderServiceRepository.checkForReminder();
+//    }
 
     /**
      * TODO Case Supplier - ONESIGNAL
@@ -164,10 +169,11 @@ public class TransactionCheckerJob {
     }
 
     protected RestTemplate getRestTemplate() {
-        RestTemplate restTemplate = new RestTemplate();
+        ClientHttpRequestFactory factory = new BufferingClientHttpRequestFactory(new SimpleClientHttpRequestFactory());
+        RestTemplate restTemplate = new RestTemplate(factory);
         Oauth2Operations oauth2Operations = new Oauth2Template();
         AccessGrant accessGrant = oauth2Operations.getToken(common.BCA_CLIENT_ID, common.BCA_CLIENT_SECRET);
-        BCATransactionInterceptor bca = new BCATransactionInterceptor(accessGrant.getAccessToken(), common.BCA_API_KEY, common.BCA_API_SECRET);
+//        BCATransactionInterceptor bca = new BCATransactionInterceptor(accessGrant.getAccessToken(), common.BCA_API_KEY, common.BCA_API_SECRET);
 
         restTemplate.setInterceptors(Collections.singletonList(new BCATransactionInterceptor(accessGrant.getAccessToken(), common.BCA_API_KEY, common.BCA_API_SECRET)));
         restTemplate.setErrorHandler(new BCAErrorHandler());

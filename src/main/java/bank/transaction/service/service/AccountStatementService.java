@@ -3,6 +3,7 @@ package bank.transaction.service.service;
 import bank.transaction.service.domain.AccountStatement;
 import bank.transaction.service.domain.AccountStatementDetail;
 import bank.transaction.service.repository.AccountStatementRepository;
+import io.micronaut.configuration.hibernate.jpa.scope.CurrentSession;
 import io.micronaut.spring.tx.annotation.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,8 +21,8 @@ public class AccountStatementService implements AccountStatementRepository {
     @PersistenceContext
     private EntityManager entityManager;
     private static final Logger LOG = LoggerFactory.getLogger(AccountStatementService.class);
-
-    public AccountStatementService(EntityManager entityManager){
+    HashMap map = new HashMap();
+    public AccountStatementService(@CurrentSession EntityManager entityManager){
         this.entityManager = entityManager;
     }
 
@@ -33,8 +34,6 @@ public class AccountStatementService implements AccountStatementRepository {
     @Override
     @Transactional
     public AccountStatement saveConditional(@NotNull AccountStatement accountStatement){
-
-        LOG.info(" ---- Account Statement = "+accountStatement);
         accountStatement.setBank("BCA");
         HashMap map = CheckIfCurrentDateAlreadyExist(accountStatement.getStartDate(),accountStatement.getEndDate());
         List<BigDecimal> listamount = new ArrayList<>();
@@ -51,9 +50,6 @@ public class AccountStatementService implements AccountStatementRepository {
 
             LOG.info("\n\n\n\n Not exist = false");
             AccountStatement accountStatementInstance = (AccountStatement) map.get("result");
-//            LOG.info("\naccountStatementInstance \n\n {}",accountStatementInstance.toString());
-//            LOG.info("\naccountStatementInstance \n\n {}",accountStatementInstance.getAccountStatementDetailList());
-
             for (AccountStatementDetail detail: accountStatement.getAccountStatementDetailList()) {
                 listamount.add(detail.getAmount());
 //                Query query = entityManager.createQuery("SELECT a FROM AccountStatementDetail as a WHERE a.accountStatement = :accountStatement AND a.transactionType = :transactionType AND a.transactionDate = :transactionDate AND a.branchCode = :branchCode AND a.amount = :transactionAmount AND a.name = :transactionName AND a.remark = :trailer")
@@ -74,8 +70,8 @@ public class AccountStatementService implements AccountStatementRepository {
 //                }
             }
 
-            Query query = entityManager.createQuery("SELECT a FROM AccountStatementDetail as a WHERE a.accountStatement = :accountStatement AND a.amount in (:transactionAmount)")
-                    .setParameter("accountStatement",accountStatementInstance)
+            Query query = entityManager.createQuery("SELECT a FROM AccountStatementDetail a WHERE a.accountStatement.id = :accountStatement AND a.amount in (:transactionAmount)")
+                    .setParameter("accountStatement",accountStatementInstance.getId())
                     .setParameter("transactionAmount",listamount);
 
             try{
@@ -120,7 +116,6 @@ public class AccountStatementService implements AccountStatementRepository {
                     LOG.info("\n\n\nThis Account Statement Detail already exist in DB ::: {}");
                 }
             }
-
             return accountStatement;
         }
     }
@@ -144,25 +139,21 @@ public class AccountStatementService implements AccountStatementRepository {
      * */
     @Transactional
     public HashMap CheckIfCurrentDateAlreadyExist(@NotNull Date startDate, @NotNull Date endDate){
-        HashMap map = new HashMap();
+        map.clear();
         if(startDate.compareTo(endDate) == 0){
-            Query query = entityManager.createQuery("SELECT a FROM AccountStatement as a WHERE a.startDate = :startDate").setParameter("startDate",startDate);
+            Query query = entityManager.createQuery("SELECT a FROM AccountStatement a WHERE a.startDate = :startDate").setParameter("startDate",startDate);
             if(query.getResultList().isEmpty()){
-//                LOG.info("1. 1.");
                 map.put("notExist",true);
                 map.put("result",null);
                 return map;
             }
             else{
-//                LOG.info("2. 2.");
-//                LOG.info("\n\n=========== IN CheckIfCurrentDateAlreadyExist => {}",query.getResultList().get(0));
                 map.put("notExist",false);
                 map.put("result", query.getResultList().get(0));
                 return map;
             }
         }
         else{
-//            LOG.info("3. 3.");
             map.put("notExist",false);
             map.put("result",null);
             return map;

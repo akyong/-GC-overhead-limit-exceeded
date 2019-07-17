@@ -5,13 +5,30 @@
              ch.qos.logback.classic.encoder.PatternLayoutEncoder by default -->
         <encoder>
             <pattern>%d{dd/MM/yyyy HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <!--<pattern>logging uri: %requestURL | status code: %statusCode | bytes: %bytesSent | elapsed time: %elapsedTime | request-log: %magenta(%requestContent) | response-log: %cyan(%responseContent)</pattern>-->
         </encoder>
     </appender>
+
+
+    <logger name="io.micronaut.http.client" additivity="false" level="TRACE">
+        <appender-ref ref="STDOUT"/>
+    </logger>
+    <logger name="io.micronaut.http.server.netty.RoutingInBoundHandler" additivity="false" level="DEBUG">
+        <appender-ref ref="STDOUT"/>
+    </logger>
+    <logger name="io.micronaut.http" additivity="false" level="DEBUG">
+        <appender-ref ref="STDOUT"/>
+    </logger>
+
 
     <root level="info">
         <appender-ref ref="STDOUT" />
     </root>
-    <!--<logger name="io.micronaut.context.condition" level="DEBUG"/>-->
-    <logger name="bank.transaction.service" level="DEBUG" />
+    <!--<logger name="io.micronaut.http" level="TRACE"/>-->
+    <!--<logger name="bank.transaction.service" level="DEBUG" />-->
+    <!--<logger name="io.micronaut.context" level="TRACE"/>-->
+    <!--<logger name="io.netty.handler.logging" level="TRACE"/>-->
 
+    <!--<logger name="mylogger" level="TRACE"/>-->
+    <!--<logger name="bank.transaction.service" level="TRACE"/>-->
 </configuration>

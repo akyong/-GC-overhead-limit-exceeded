@@ -40,4 +40,10 @@ public class ReceivePaymentController {
         return "";
 //        return orderServiceRepository.COMPLETE_TRX(receivedPaymentVIrfan.getInvoiceNo());
     }
+
+    @Post("/test")
+    public String index22(){
+        return "test";
+//        return orderServiceRepository.COMPLETE_TRX(receivedPaymentVIrfan.getInvoiceNo());
+    }
 }

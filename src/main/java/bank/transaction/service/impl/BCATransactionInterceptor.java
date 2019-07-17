@@ -12,9 +12,11 @@ import org.springframework.http.MediaType;
 import org.springframework.http.client.ClientHttpRequestExecution;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.http.client.ClientHttpResponse;
+import org.springframework.util.StreamUtils;
 
 import javax.inject.Singleton;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -38,7 +40,7 @@ public class BCATransactionInterceptor implements ClientHttpRequestInterceptor {
 
     private String apiSecret;
 
-    private static final Logger LOG = LoggerFactory.getLogger(BCATransactionInterceptor.class);
+    private static final Logger log = LoggerFactory.getLogger(BCATransactionInterceptor.class);
 
     public BCATransactionInterceptor(String accessToken, String apiKey, String apiSecret) {
         this.accessToken = accessToken;
@@ -48,6 +50,8 @@ public class BCATransactionInterceptor implements ClientHttpRequestInterceptor {
 
     @Override
     public ClientHttpResponse intercept(final HttpRequest httpRequest, byte[] body, ClientHttpRequestExecution clientHttpRequestExecution) throws IOException {
+        logRequest(httpRequest, body);
+
         String timestamp = getTimestamp();
         HttpHeaders httpHeaders = httpRequest.getHeaders();
         httpHeaders.set("Authorization", "Bearer " + accessToken);
@@ -58,9 +62,11 @@ public class BCATransactionInterceptor implements ClientHttpRequestInterceptor {
         httpHeaders.setContentType(MediaType.APPLICATION_JSON);
         httpHeaders.remove("Accept-Charset");
 
+        ClientHttpResponse response = clientHttpRequestExecution.execute(httpRequest, body);
+        logResponse(response);
 //        LOG.info("BCA {}",  clientHttpRequestExecution.execute(httpRequest, body).
 
-        return clientHttpRequestExecution.execute(httpRequest, body);
+        return response;
     }
 
     private String sign(HttpRequest httpRequest, String timestamp, String body) {
@@ -127,5 +133,27 @@ public class BCATransactionInterceptor implements ClientHttpRequestInterceptor {
 
         DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
         return dateFormat.format(new Date());
+    }
+
+    private void logRequest(HttpRequest request, byte[] body) throws IOException {
+//        if (log.isDebugEnabled()) {
+            log.info("===========================request begin================================================");
+            log.info("URI         : {}", request.getURI());
+            log.info("Method      : {}", request.getMethod());
+            log.info("Headers     : {}", request.getHeaders());
+            log.info("Request body: {}", new String(body, "UTF-8"));
+            log.info("==========================request end================================================");
+//        }
+    }
+
+    private void logResponse(ClientHttpResponse response) throws IOException {
+//        if (log.isDebugEnabled()) {
+            log.info("============================response begin==========================================");
+            log.info("Status code  : {}", response.getStatusCode());
+            log.info("Status text  : {}", response.getStatusText());
+            log.info("Headers      : {}", response.getHeaders());
+            log.info("Response body: {}", StreamUtils.copyToString(response.getBody(), Charset.defaultCharset()));
+            log.info("=======================response end=================================================");
+//        }
     }
 }
